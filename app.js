@@ -941,10 +941,10 @@ function updateCountingFromCard(card) {
 }
 
 function drawCard({ countTowardsRunningCount = true } = {}) {
-  if (state.shoe.length === 0) {
+  if (state.shoe.length < 52) {
     state.shoe = createShoe(state.settings.decksInShoe);
     state.countingState.runningCount = 0;
-    appendLog('Shoe reshuffled.');
+    appendLog('Shoe reshuffled — fewer than a deck remained.');
   }
 
   const card = state.shoe.pop();
