@@ -3804,19 +3804,7 @@ function handleInsufficientFunds() {
 
 function renderBlackjackEntryScreen() {
   if (!elements.entryPlayCaption) return;
-  const profile = getActiveProfile();
-
-  if (!profile) {
-    elements.entryPlayCaption.textContent = "No profile? Play now as a guest — it's a full practice round, but your hands and stats won't be saved.";
-    return;
-  }
-
-  if (profile.active === false) {
-    elements.entryPlayCaption.textContent = `"${profile.name}" is out of funds and inactive — choose another profile or create a new one to keep playing.`;
-    return;
-  }
-
-  elements.entryPlayCaption.textContent = `Continue as "${profile.name}" (Balance: ${formatCurrency(profile.balance)}).`;
+  elements.entryPlayCaption.textContent = "Play starts an instant guest practice session — no profile needed, and your hands and stats won't be saved. Use \"Use Existing Profile\" or \"Create New Profile\" if you want your progress tracked.";
 }
 
 function renderProfileMenuScreen() {
@@ -4178,19 +4166,7 @@ function askCustomPresetForNewProfile(name) {
 function bindProfileScreenEvents() {
   if (elements.entryPlayBtn) {
     elements.entryPlayBtn.addEventListener('click', () => {
-      const profile = getActiveProfile();
-      if (!profile) {
-        startGuestSession();
-        renderScreen('blackjack');
-        return;
-      }
-      if (profile.active === false) {
-        showModal('Profile Inactive', `"${profile.name}" is out of funds and marked inactive. Choose another profile or create a new one to keep playing.`, ['OK'], () => {
-          openProfilePickerModal();
-        });
-        return;
-      }
-      loadProfileIntoLiveState(profile);
+      startGuestSession();
       renderScreen('blackjack');
     });
   }
