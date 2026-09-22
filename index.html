@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>Blackjack Terminus</title>
+    <link rel="stylesheet" href="styles.css?v=blackjack-terminus-card-counting-v5" />
+  </head>
+  <body>
+    <div id="app">
+      <div id="introScreen" class="screen active">
+        <div class="menu-panel intro-panel">
+          <h1>Blackjack Terminus</h1>
+          <h2>Play • Practice • Count</h2>
+          <p>Welcome to the casino training lounge. Sharpen your decisions, practice the right plays, and enjoy a premium blackjack experience built for learning.</p>
+          <div class="divider"></div>
+          <button id="enterGameBtn" class="menu-btn primary" type="button">Enter Blackjack Terminus</button>
+        </div>
+      </div>
+
+      <div id="menuScreen" class="screen">
+        <div class="menu-panel">
+          <h1>Blackjack Terminus</h1>
+          <h2>Play • Practice • Count</h2>
+          <p>Casino Training Lounge</p>
+          <div class="divider"></div>
+          <button class="menu-btn primary" data-screen="blackjack">Play Blackjack</button>
+          <button class="menu-btn accent" data-screen="basic-strategy">Basic Strategy</button>
+          <button class="menu-btn warning" data-screen="card-counting">Card Counting</button>
+          <button class="menu-btn secondary" data-screen="rules">Rules/Strategies</button>
+          <button class="menu-btn secondary" data-screen="settings">Settings</button>
+        </div>
+      </div>
+
+      <div id="rulesScreen" class="screen">
+        <div class="rules-panel page-panel">
+          <div class="page-header">
+            <h1>Rules &amp; Strategy</h1>
+            <p>Learn how to play and how to make the best decision at the table.</p>
+          </div>
+          <div id="rulesContent" class="page-content"></div>
+          <div class="toolbar compact-toolbar">
+            <button class="menu-btn secondary" data-screen="menu">Main Menu</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="settingsScreen" class="screen">
+        <div class="settings-panel page-panel">
+          <div class="page-header">
+            <h1>Settings</h1>
+            <p>Adjust music and sound effect volume to suit your table.</p>
+          </div>
+          <div id="settingsContent" class="page-content"></div>
+          <div class="toolbar compact-toolbar">
+            <button class="menu-btn secondary" data-screen="menu">Main Menu</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="blackjackScreen" class="screen">
+        <div class="table-shell">
+          <header class="top-bar">
+            <div>
+              <div class="brand">Blackjack Terminus</div>
+              <div class="sub-brand">Casino Training Lounge</div>
+            </div>
+            <div class="status-box" id="statusLabel">Preset: Training | Balance: $1000.00</div>
+          </header>
+
+          <section class="hud-row">
+            <div class="info-pill" id="runningCountBox">Running count: 0</div>
+            <div class="info-pill" id="decksRemainingBox">Decks remaining: 6</div>
+            <div class="info-pill" id="trueCountBox">True count: 0.00</div>
+            <div class="info-pill" id="balanceBox">Balance: $1000.00</div>
+          </section>
+
+          <section class="game-speed-row">
+            <div class="slider-row">
+              <label for="gameDealingSpeedSlider">Dealing speed</label>
+              <div class="slider-wrap">
+                <input id="gameDealingSpeedSlider" type="range" min="20" max="100" value="80" />
+                <span id="gameDealingSpeedValue">80%</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="table-area">
+            <div class="dealer-zone">
+              <h3>Dealer</h3>
+              <div id="dealerHand" class="hand-row"></div>
+            </div>
+
+            <div class="player-zone">
+              <h3>Player <span id="playerHandTotal" class="hand-total">0</span></h3>
+              <div id="playerHand" class="hand-row"></div>
+            </div>
+          </section>
+
+          <section class="controls-row">
+            <button class="control-btn blue" id="hitBtn">Hit</button>
+            <button class="control-btn green" id="standBtn">Stand</button>
+            <button class="control-btn orange" id="doubleBtn">Double</button>
+            <button class="control-btn purple" id="splitBtn">Split</button>
+            <button class="control-btn red" id="surrenderBtn">Surrender</button>
+            <button class="control-btn" id="insuranceBtn">Insurance</button>
+          </section>
+
+          <section class="bet-row" id="betPanel"></section>
+
+          <div class="toolbar">
+            <button class="menu-btn secondary" id="presetBtn">Preset</button>
+            <button class="menu-btn secondary" id="menuBtn">Main Menu</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="basicStrategyScreen" class="screen">
+        <div class="page-panel strategy-hub-panel">
+          <div class="page-header">
+            <h1>Basic Strategy</h1>
+            <p>Choose a way to sharpen your basic strategy skills.</p>
+          </div>
+
+          <div class="hub-explainer">
+            <p>Basic strategy is the mathematically optimal play for every hand and dealer upcard combination — the single best decision (hit, stand, double, split, or surrender) that minimizes the house edge over the long run.</p>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="strategy-hub-grid">
+            <button type="button" class="strategy-hub-card" data-screen="strategy-hand-training">
+              <div class="strategy-hub-icon">🃏</div>
+              <h3>Hand Training</h3>
+              <p>Get dealt every unique hand and dealer combination. Choose the right play and track your mistakes.</p>
+            </button>
+            <button type="button" class="strategy-hub-card" data-screen="strategy-questionnaire">
+              <div class="strategy-hub-icon">❓</div>
+              <h3>Questionnaire</h3>
+              <p>Multiple choice, true/false, and choose-all-that-apply questions to test your knowledge.</p>
+            </button>
+            <button type="button" class="strategy-hub-card" data-screen="strategy-charts">
+              <div class="strategy-hub-icon">📊</div>
+              <h3>Charts</h3>
+              <p>Fill out a blank basic strategy chart from memory, then see your full graded results.</p>
+            </button>
+          </div>
+
+          <div class="strategy-hub-footer">
+            <div class="strategy-hub-suits">
+              <span class="suit-glyph">♠</span><span class="suit-glyph red">♥</span><span class="suit-glyph">♣</span><span class="suit-glyph red">♦</span>
+            </div>
+            <p>Master every hand, question, and chart to play like a pro.</p>
+          </div>
+
+          <div class="toolbar compact-toolbar">
+            <button class="menu-btn secondary" data-screen="menu">Main Menu</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="strategyHandTrainingScreen" class="screen">
+        <div class="trainer-panel strategy-panel">
+          <div class="page-header">
+            <h1>Hand Training</h1>
+            <p>Master every hand and dealer combination. Miss one and it's saved to your Mistakes Bank for later.</p>
+          </div>
+
+          <div class="strategy-toolbar">
+            <div class="strategy-tabs">
+              <button type="button" class="strategy-tab active" id="strategyTabPractice">Practice All Hands</button>
+              <button type="button" class="strategy-tab" id="strategyTabMistakes">Mistakes Bank <span id="mistakesCountBadge" class="badge-count">0</span></button>
+            </div>
+            <div class="strategy-toggles">
+              <label class="toggle-switch">
+                <input type="checkbox" id="strategySurrenderToggle" checked />
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                <span class="toggle-label">Surrender</span>
+              </label>
+            </div>
+          </div>
+
+          <div id="strategyProgressRow" class="strategy-progress-row">
+            <div class="strategy-progress-track"><div id="strategyProgressFill" class="strategy-progress-fill"></div></div>
+            <div id="strategyProgressLabel" class="strategy-progress-label">0 / 0 combinations remaining</div>
+          </div>
+
+          <div id="strategyPlayArea" class="strategy-play-area">
+            <section class="dealer-zone strategy-zone">
+              <h3>Dealer shows</h3>
+              <div id="strategyDealerHand" class="hand-row"></div>
+            </section>
+
+            <section class="player-zone strategy-zone">
+              <h3>Your hand <span id="strategyHandTotal" class="hand-total"></span></h3>
+              <div id="strategyPlayerHand" class="hand-row"></div>
+            </section>
+          </div>
+
+          <div id="strategyFeedback" class="strategy-feedback">Choose the best move for this hand.</div>
+
+          <div id="strategyActionGrid" class="action-grid strategy-action-grid"></div>
+
+          <button type="button" id="strategyNextHandBtn" class="menu-btn primary strategy-next-btn hidden">Next Hand</button>
+
+          <div id="strategyMistakesPanel" class="strategy-mistakes-panel hidden">
+            <div id="strategyMistakesEmpty" class="strategy-mistakes-empty hidden">No mistakes saved yet. Anything you miss while practicing will show up here.</div>
+            <div id="strategyMistakesList" class="strategy-mistakes-list"></div>
+            <div class="toolbar compact-toolbar">
+              <button type="button" class="menu-btn accent" id="strategyPracticeMistakesBtn">Practice Mistakes</button>
+            </div>
+          </div>
+
+          <div class="toolbar compact-toolbar">
+            <button type="button" class="menu-btn secondary hidden" id="strategyBackToListBtn">Back to Mistakes List</button>
+            <button class="menu-btn secondary" data-screen="basic-strategy">Basic Strategy Menu</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="strategyQuestionnaireScreen" class="screen">
+        <div class="trainer-panel strategy-panel">
+          <div class="page-header">
+            <h1>Questionnaire</h1>
+            <p>Multiple choice, true/false, and choose-all-that-apply questions covering basic strategy.</p>
+          </div>
+
+          <div class="strategy-toolbar">
+            <div class="strategy-tabs">
+              <button type="button" class="strategy-tab active" id="quizTabPractice">Practice All Questions</button>
+              <button type="button" class="strategy-tab" id="quizTabMistakes">Mistakes Bank <span id="quizMistakesCountBadge" class="badge-count">0</span></button>
+            </div>
+            <div class="strategy-toggles">
+              <label class="toggle-switch">
+                <input type="checkbox" id="quizSurrenderToggle" checked />
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                <span class="toggle-label">Surrender</span>
+              </label>
+            </div>
+          </div>
+
+          <div id="quizProgressRow" class="strategy-progress-row">
+            <div class="strategy-progress-track"><div id="quizProgressFill" class="strategy-progress-fill"></div></div>
+            <div id="quizProgressLabel" class="strategy-progress-label">0 / 0 questions remaining</div>
+          </div>
+
+          <div id="quizPlayArea" class="quiz-play-area">
+            <div id="quizTypeTag" class="quiz-type-tag">Multiple Choice</div>
+            <div id="quizPrompt" class="quiz-prompt"></div>
+            <div id="quizOptions" class="quiz-options"></div>
+            <button type="button" id="quizSubmitBtn" class="menu-btn primary quiz-submit-btn">Submit Answer</button>
+          </div>
+
+          <div id="quizFeedback" class="strategy-feedback hidden"></div>
+
+          <button type="button" id="quizNextBtn" class="menu-btn primary strategy-next-btn hidden">Next Question</button>
+
+          <div id="quizMistakesPanel" class="strategy-mistakes-panel hidden">
+            <div id="quizMistakesEmpty" class="strategy-mistakes-empty hidden">No mistakes saved yet. Anything you miss while practicing will show up here.</div>
+            <div id="quizMistakesList" class="strategy-mistakes-list"></div>
+            <div class="toolbar compact-toolbar">
+              <button type="button" class="menu-btn accent" id="quizPracticeMistakesBtn">Practice Mistakes</button>
+            </div>
+          </div>
+
+          <div class="toolbar compact-toolbar">
+            <button type="button" class="menu-btn secondary hidden" id="quizBackToListBtn">Back to Mistakes List</button>
+            <button class="menu-btn secondary" data-screen="basic-strategy">Basic Strategy Menu</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="strategyChartsScreen" class="screen">
+        <div class="trainer-panel strategy-panel charts-panel">
+          <div class="page-header">
+            <h1>Charts</h1>
+            <p>Type a letter into every box from memory (H, S, D, P, R), then submit to see your full graded chart and score.</p>
+          </div>
+
+          <div class="strategy-toolbar">
+            <div class="strategy-toggles">
+              <label class="toggle-switch">
+                <input type="checkbox" id="chartSurrenderToggle" checked />
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                <span class="toggle-label">Surrender</span>
+              </label>
+            </div>
+            <div class="chart-legend" id="chartLegend"></div>
+          </div>
+
+          <div id="chartScoreBanner" class="chart-score-banner hidden"></div>
+
+          <div id="chartTablesContainer" class="chart-tables-container"></div>
+
+          <div class="toolbar compact-toolbar">
+            <button type="button" class="menu-btn primary" id="chartSubmitBtn">Submit Chart</button>
+            <button type="button" class="menu-btn secondary hidden" id="chartResetBtn">Try Again</button>
+            <button class="menu-btn secondary" data-screen="basic-strategy">Basic Strategy Menu</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="cardCountingScreen" class="screen">
+        <div class="page-panel strategy-hub-panel">
+          <div class="page-header">
+            <h1>Card Counting</h1>
+            <p>Sharpen the skill professional players use to find an edge at the table.</p>
+          </div>
+
+          <div class="hub-explainer">
+            <p>Card counting tracks the ratio of high cards to low cards left in the shoe so you know when the odds tilt toward the player. The Hi-Lo system assigns +1 to low cards (2-6), 0 to neutral cards (7-9), and -1 to high cards (10 through Ace). Add up every card's value as it's dealt to get your running count, then divide by the decks remaining to get the true count — the number that actually reflects your edge.</p>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="strategy-hub-grid single-card">
+            <button type="button" class="strategy-hub-card" data-screen="counting-running-drill">
+              <div class="strategy-hub-icon">🔢</div>
+              <h3>Running Count Drill</h3>
+              <p>Watch full hands play out at the table on their own, then enter the running count from memory before the next hand begins.</p>
+            </button>
+          </div>
+
+          <div class="strategy-hub-footer">
+            <div class="strategy-hub-suits">
+              <span class="suit-glyph">♠</span><span class="suit-glyph red">♥</span><span class="suit-glyph">♣</span><span class="suit-glyph red">♦</span>
+            </div>
+            <p>More counting drills are on the way — check back soon.</p>
+          </div>
+
+          <div class="toolbar compact-toolbar">
+            <button class="menu-btn secondary" data-screen="menu">Main Menu</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="countingRunningDrillScreen" class="screen">
+        <div class="trainer-panel strategy-panel counting-drill-panel">
+          <div class="page-header">
+            <h1>Running Count Drill</h1>
+            <p>Watch the table play itself out using basic strategy, then enter the running count before the next hand is dealt.</p>
+          </div>
+
+          <div class="counting-drill-settings">
+            <div class="drill-setting">
+              <label for="drillDecksSelect">Decks in shoe</label>
+              <select id="drillDecksSelect">
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6" selected>6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+              </select>
+            </div>
+            <div class="drill-setting">
+              <label for="drillSpeedSlider">Dealing speed</label>
+              <div class="slider-wrap">
+                <input id="drillSpeedSlider" type="range" min="200" max="2000" step="50" value="500" />
+                <span id="drillSpeedValue">500ms</span>
+              </div>
+            </div>
+            <div class="drill-setting">
+              <label for="drillHandsSlider">Hands at once</label>
+              <div class="slider-wrap">
+                <input id="drillHandsSlider" type="range" min="1" max="6" step="1" value="1" />
+                <span id="drillHandsValue">1</span>
+              </div>
+            </div>
+          </div>
+
+          <div id="drillStatus" class="drill-status">Press Reset Shoe to deal the first hand.</div>
+
+          <section class="table-area drill-table-area">
+            <div class="dealer-zone">
+              <h3>Dealer</h3>
+              <div id="drillDealerHand" class="hand-row"></div>
+            </div>
+
+            <div class="player-zone">
+              <h3>Table</h3>
+              <div id="drillPlayerHands" class="drill-player-hands"></div>
+            </div>
+          </section>
+
+          <div class="toolbar compact-toolbar">
+            <button type="button" class="menu-btn primary" id="drillResetBtn">Reset Shoe</button>
+            <button class="menu-btn secondary" data-screen="card-counting">Card Counting Menu</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="modalOverlay" class="modal-overlay hidden">
+      <div id="modalBox" class="modal-box">
+        <h3 id="modalTitle"></h3>
+        <p id="modalMessage"></p>
+        <div id="modalActions" class="modal-actions"></div>
+      </div>
+    </div>
+
+    <script src="app.js?v=blackjack-terminus-card-counting-v5"></script>
+  </body>
+</html>
