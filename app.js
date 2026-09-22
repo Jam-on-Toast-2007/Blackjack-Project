@@ -690,6 +690,7 @@ function bindStaticEvents() {
   document.getElementById('surrenderBtn').addEventListener('click', () => handleAction('R'));
   document.getElementById('insuranceBtn').addEventListener('click', () => handleAction('I'));
   document.getElementById('presetBtn').addEventListener('click', choosePreset);
+  document.getElementById('resetShoeBtn').addEventListener('click', confirmResetShoe);
   document.getElementById('menuBtn').addEventListener('click', () => renderScreen('menu'));
   document.getElementById('enterGameBtn').addEventListener('click', () => {
     playScreenMusic('menu');
@@ -1562,6 +1563,18 @@ function choosePreset() {
     renderBetPanel();
     updateHud();
     appendLog(`Preset set: ${state.presetName}`);
+  });
+}
+
+function confirmResetShoe() {
+  showModal('Reset Shoe', 'Shuffle a brand new shoe and reset the running count and true count?', ['Reset', 'Cancel'], (choice) => {
+    if (choice !== 0) return;
+    state.shoe = createShoe(state.settings.decksInShoe);
+    state.countingState.runningCount = 0;
+    state.countingState.decksRemaining = state.shoe.length / 52;
+    state.countingState.trueCount = 0;
+    updateHud();
+    appendLog('Shoe reset — fresh shoe shuffled.');
   });
 }
 
