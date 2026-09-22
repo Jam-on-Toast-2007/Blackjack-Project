@@ -1138,6 +1138,7 @@ async function handleAction(action) {
       state.roundActive = false;
       state.isDealing = true;
       await settleRound();
+      state.isDealing = false;
       return;
     }
     updateHud();
@@ -1152,6 +1153,7 @@ async function handleAction(action) {
       state.roundActive = false;
       state.isDealing = true;
       await settleRound();
+      state.isDealing = false;
       return;
     }
   }
