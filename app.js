@@ -81,11 +81,14 @@ const state = {
   },
   deviationDrillState: {
     pool: [],
+    mistakes: [],
     currentEntry: null,
+    currentScenarioId: null,
     currentHand: [],
     currentDealerCard: null,
     currentTrueCount: 0,
     answered: false,
+    view: 'practice',
     sessionTotal: 0
   },
   countQuizState: {
@@ -511,6 +514,7 @@ const elements = {
   profileStatsName: document.getElementById('profileStatsName'),
   profileStatsContent: document.getElementById('profileStatsContent'),
   profileStatsBackBtn: document.getElementById('profileStatsBackBtn'),
+  deviationProgressRow: document.getElementById('deviationProgressRow'),
   deviationProgressFill: document.getElementById('deviationProgressFill'),
   deviationProgressLabel: document.getElementById('deviationProgressLabel'),
   deviationCountBanner: document.getElementById('deviationCountBanner'),
@@ -520,6 +524,15 @@ const elements = {
   deviationFeedback: document.getElementById('deviationFeedback'),
   deviationActionGrid: document.getElementById('deviationActionGrid'),
   deviationNextBtn: document.getElementById('deviationNextBtn'),
+  deviationPlayArea: document.getElementById('deviationPlayArea'),
+  deviationTabPractice: document.getElementById('deviationTabPractice'),
+  deviationTabMistakes: document.getElementById('deviationTabMistakes'),
+  deviationMistakesCountBadge: document.getElementById('deviationMistakesCountBadge'),
+  deviationMistakesPanel: document.getElementById('deviationMistakesPanel'),
+  deviationMistakesEmpty: document.getElementById('deviationMistakesEmpty'),
+  deviationMistakesList: document.getElementById('deviationMistakesList'),
+  deviationPracticeMistakesBtn: document.getElementById('deviationPracticeMistakesBtn'),
+  deviationBackToListBtn: document.getElementById('deviationBackToListBtn'),
   modalOverlay: document.getElementById('modalOverlay'),
   modalTitle: document.getElementById('modalTitle'),
   modalMessage: document.getElementById('modalMessage'),
@@ -4284,11 +4297,14 @@ const DEVIATION_HAND_ENTRIES = ILLUSTRIOUS_18.filter((entry) => entry.kind !== '
 function buildDeviationDrillScenarioList() {
   const scenarios = [];
   DEVIATION_HAND_ENTRIES.forEach((entry, entryIndex) => {
-    scenarios.push({ entryIndex, applyDeviation: true });
-    scenarios.push({ entryIndex, applyDeviation: false });
+    scenarios.push({ id: `${entryIndex}-true`, entryIndex, applyDeviation: true });
+    scenarios.push({ id: `${entryIndex}-false`, entryIndex, applyDeviation: false });
   });
   return scenarios;
 }
+
+const DEVIATION_SCENARIO_LIST = buildDeviationDrillScenarioList();
+const DEVIATION_SCENARIO_BY_ID = Object.fromEntries(DEVIATION_SCENARIO_LIST.map((scenario) => [scenario.id, scenario]));
 
 function trueCountForDrillScenario(entry, applyDeviation) {
   const wantBelowIndex = entry.direction === 'gte' ? !applyDeviation : applyDeviation;
@@ -4305,29 +4321,98 @@ function correctMoveForDrillHand(hand, dealerCard, trueCount) {
   return deviation || baseMove;
 }
 
-function startDeviationDrillSession() {
-  state.deviationDrillState.pool = buildDeviationDrillScenarioList();
+function describeDeviationScenario(scenario) {
+  const entry = DEVIATION_HAND_ENTRIES[scenario.entryIndex];
+  const trueCount = trueCountForDrillScenario(entry, scenario.applyDeviation);
+  const handLabel = illustriousHandLabel(entry);
+  const situation = scenario.applyDeviation ? 'the deviation applies' : 'basic strategy still applies';
+  return `A hand of ${handLabel} at a true count of ${formatSignedNumber(trueCount)} (${situation})`;
+}
+
+const DEVIATION_MISTAKES_STORAGE_KEY = 'blackjackTerminusDeviationMistakes';
+
+function loadDeviationMistakesFromStorage() {
+  try {
+    const raw = localStorage.getItem(DEVIATION_MISTAKES_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((id) => DEVIATION_SCENARIO_BY_ID[id]) : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function persistDeviationMistakes() {
+  try {
+    localStorage.setItem(DEVIATION_MISTAKES_STORAGE_KEY, JSON.stringify(state.deviationDrillState.mistakes));
+  } catch (error) {
+    // localStorage may be unavailable; the mistakes bank simply won't persist across reloads.
+  }
+}
+
+function addDeviationMistake(id) {
+  if (!state.deviationDrillState.mistakes.includes(id)) {
+    state.deviationDrillState.mistakes.push(id);
+    persistDeviationMistakes();
+  }
+  updateDeviationMistakesBadge();
+}
+
+function removeDeviationMistake(id) {
+  state.deviationDrillState.mistakes = state.deviationDrillState.mistakes.filter((mistakeId) => mistakeId !== id);
+  persistDeviationMistakes();
+  updateDeviationMistakesBadge();
+  if (state.deviationDrillState.view === 'mistakesList') renderDeviationMistakesList();
+}
+
+function updateDeviationMistakesBadge() {
+  if (elements.deviationMistakesCountBadge) {
+    elements.deviationMistakesCountBadge.textContent = state.deviationDrillState.mistakes.length;
+  }
+}
+
+function startNewDeviationPool() {
+  state.deviationDrillState.view = 'practice';
+  state.deviationDrillState.pool = DEVIATION_SCENARIO_LIST.map((scenario) => scenario.id);
   shuffle(state.deviationDrillState.pool);
   state.deviationDrillState.sessionTotal = state.deviationDrillState.pool.length;
   state.deviationDrillState.currentEntry = null;
-  if (elements.deviationNextBtn) elements.deviationNextBtn.classList.add('hidden');
+  if (elements.deviationPlayArea) elements.deviationPlayArea.classList.remove('hidden');
+  drawNextDeviationScenario();
+}
+
+function startDeviationMistakesPractice() {
+  if (state.deviationDrillState.mistakes.length === 0) return;
+  state.deviationDrillState.view = 'mistakesPractice';
+  state.deviationDrillState.pool = state.deviationDrillState.mistakes.filter((id) => DEVIATION_SCENARIO_BY_ID[id]);
+  shuffle(state.deviationDrillState.pool);
+  state.deviationDrillState.sessionTotal = state.deviationDrillState.pool.length;
+  state.deviationDrillState.currentEntry = null;
+
+  if (elements.deviationMistakesPanel) elements.deviationMistakesPanel.classList.add('hidden');
+  if (elements.deviationPlayArea) elements.deviationPlayArea.classList.remove('hidden');
+  if (elements.deviationCountBanner) elements.deviationCountBanner.classList.remove('hidden');
+  if (elements.deviationFeedback) elements.deviationFeedback.classList.remove('hidden');
+  if (elements.deviationProgressRow) elements.deviationProgressRow.classList.remove('hidden');
+  if (elements.deviationBackToListBtn) elements.deviationBackToListBtn.classList.remove('hidden');
   drawNextDeviationScenario();
 }
 
 function drawNextDeviationScenario() {
   if (elements.deviationNextBtn) elements.deviationNextBtn.classList.add('hidden');
-  const scenario = state.deviationDrillState.pool.shift();
+  const scenarioId = state.deviationDrillState.pool.shift();
 
-  if (!scenario) {
+  if (!scenarioId) {
     renderDeviationDrillCompletion();
     return;
   }
 
+  const scenario = DEVIATION_SCENARIO_BY_ID[scenarioId];
   const entry = DEVIATION_HAND_ENTRIES[scenario.entryIndex];
   const { dealerCard, playerCards } = buildComboHand(entry);
   const trueCount = trueCountForDrillScenario(entry, scenario.applyDeviation);
 
   state.deviationDrillState.currentEntry = entry;
+  state.deviationDrillState.currentScenarioId = scenarioId;
   state.deviationDrillState.currentHand = playerCards;
   state.deviationDrillState.currentDealerCard = dealerCard;
   state.deviationDrillState.currentTrueCount = trueCount;
@@ -4338,6 +4423,8 @@ function drawNextDeviationScenario() {
 
 function renderDeviationScenario() {
   if (!elements.deviationPlayerHand) return;
+  if (elements.deviationPlayArea) elements.deviationPlayArea.classList.remove('hidden');
+  if (elements.deviationCountBanner) elements.deviationCountBanner.classList.remove('hidden');
   renderHand(elements.deviationDealerHand, [state.deviationDrillState.currentDealerCard], false);
   renderHand(elements.deviationPlayerHand, state.deviationDrillState.currentHand, false);
   if (elements.deviationHandTotal) elements.deviationHandTotal.textContent = scoreHand(state.deviationDrillState.currentHand);
@@ -4345,6 +4432,7 @@ function renderDeviationScenario() {
     elements.deviationCountBanner.textContent = `True count: ${state.deviationDrillState.currentTrueCount}`;
   }
   if (elements.deviationFeedback) {
+    elements.deviationFeedback.classList.remove('hidden');
     elements.deviationFeedback.textContent = 'Choose the best move for this hand at this true count.';
     elements.deviationFeedback.className = 'strategy-feedback';
   }
@@ -4379,6 +4467,7 @@ function handleDeviationAnswer(chosenCode) {
   const hand = state.deviationDrillState.currentHand;
   const dealerCard = state.deviationDrillState.currentDealerCard;
   const trueCount = state.deviationDrillState.currentTrueCount;
+  const scenarioId = state.deviationDrillState.currentScenarioId;
 
   const correctCode = correctMoveForDrillHand(hand, dealerCard, trueCount);
   const baseMove = canSplit(hand)
@@ -4408,7 +4497,25 @@ function handleDeviationAnswer(chosenCode) {
     }
   }
 
-  if (elements.deviationNextBtn) elements.deviationNextBtn.classList.remove('hidden');
+  if (isCorrect) {
+    if (state.deviationDrillState.view === 'mistakesPractice') {
+      showModal(
+        'Nice work!',
+        'Remove this scenario from your Mistakes Bank, or keep it there to practice some more?',
+        ['Remove from Mistakes', 'Keep in Mistakes'],
+        (choice) => {
+          if (choice === 0) removeDeviationMistake(scenarioId);
+          drawNextDeviationScenario();
+        }
+      );
+    } else if (elements.deviationNextBtn) {
+      elements.deviationNextBtn.classList.remove('hidden');
+    }
+  } else {
+    addDeviationMistake(scenarioId);
+    if (elements.deviationNextBtn) elements.deviationNextBtn.classList.remove('hidden');
+  }
+
   updateDeviationDrillProgress();
 }
 
@@ -4420,28 +4527,128 @@ function updateDeviationDrillProgress() {
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   elements.deviationProgressFill.style.width = `${pct}%`;
   if (elements.deviationProgressLabel) {
-    elements.deviationProgressLabel.textContent = `${remaining} / ${total} scenarios remaining`;
+    elements.deviationProgressLabel.textContent = state.deviationDrillState.view === 'mistakesPractice'
+      ? `${remaining} / ${total} mistakes remaining`
+      : `${remaining} / ${total} scenarios remaining`;
   }
 }
 
 function renderDeviationDrillCompletion() {
   state.deviationDrillState.currentEntry = null;
+  state.deviationDrillState.currentScenarioId = null;
   if (elements.deviationActionGrid) elements.deviationActionGrid.innerHTML = '';
   if (elements.deviationNextBtn) elements.deviationNextBtn.classList.add('hidden');
   updateDeviationDrillProgress();
+
+  const isMistakes = state.deviationDrillState.view === 'mistakesPractice';
   if (elements.deviationFeedback) {
+    elements.deviationFeedback.classList.remove('hidden');
     elements.deviationFeedback.className = 'strategy-feedback complete';
-    elements.deviationFeedback.innerHTML = `You've practiced every Illustrious 18 scenario!<br /><button type="button" class="menu-btn primary strategy-complete-btn" id="deviationPracticeAgainBtn">Practice Again</button>`;
+    elements.deviationFeedback.innerHTML = isMistakes
+      ? `You've cleared every scenario in this Mistakes session!<br /><button type="button" class="menu-btn primary strategy-complete-btn" id="deviationBackToListAfterBtn">Back to Mistakes List</button>`
+      : `You've practiced every Illustrious 18 scenario!<br /><button type="button" class="menu-btn primary strategy-complete-btn" id="deviationPracticeAgainBtn">Practice Again</button>`;
   }
+
+  const backBtn = document.getElementById('deviationBackToListAfterBtn');
+  if (backBtn) backBtn.addEventListener('click', showDeviationMistakesListView);
+
   const againBtn = document.getElementById('deviationPracticeAgainBtn');
-  if (againBtn) againBtn.addEventListener('click', startDeviationDrillSession);
+  if (againBtn) againBtn.addEventListener('click', startNewDeviationPool);
+}
+
+function showDeviationPracticeView() {
+  state.deviationDrillState.view = 'practice';
+  if (elements.deviationTabPractice) elements.deviationTabPractice.classList.add('active');
+  if (elements.deviationTabMistakes) elements.deviationTabMistakes.classList.remove('active');
+  if (elements.deviationMistakesPanel) elements.deviationMistakesPanel.classList.add('hidden');
+  if (elements.deviationPlayArea) elements.deviationPlayArea.classList.remove('hidden');
+  if (elements.deviationCountBanner) elements.deviationCountBanner.classList.remove('hidden');
+  if (elements.deviationActionGrid) elements.deviationActionGrid.classList.remove('hidden');
+  if (elements.deviationFeedback) elements.deviationFeedback.classList.remove('hidden');
+  if (elements.deviationProgressRow) elements.deviationProgressRow.classList.remove('hidden');
+  if (elements.deviationBackToListBtn) elements.deviationBackToListBtn.classList.add('hidden');
+
+  if (!state.deviationDrillState.currentEntry && state.deviationDrillState.pool.length === 0) {
+    startNewDeviationPool();
+  } else if (state.deviationDrillState.currentEntry) {
+    renderDeviationScenario();
+  } else {
+    renderDeviationDrillCompletion();
+  }
+}
+
+function showDeviationMistakesListView() {
+  state.deviationDrillState.view = 'mistakesList';
+  if (elements.deviationTabMistakes) elements.deviationTabMistakes.classList.add('active');
+  if (elements.deviationTabPractice) elements.deviationTabPractice.classList.remove('active');
+  if (elements.deviationPlayArea) elements.deviationPlayArea.classList.add('hidden');
+  if (elements.deviationCountBanner) elements.deviationCountBanner.classList.add('hidden');
+  if (elements.deviationActionGrid) elements.deviationActionGrid.classList.add('hidden');
+  if (elements.deviationFeedback) elements.deviationFeedback.classList.add('hidden');
+  if (elements.deviationNextBtn) elements.deviationNextBtn.classList.add('hidden');
+  if (elements.deviationProgressRow) elements.deviationProgressRow.classList.add('hidden');
+  if (elements.deviationBackToListBtn) elements.deviationBackToListBtn.classList.add('hidden');
+  if (elements.deviationMistakesPanel) elements.deviationMistakesPanel.classList.remove('hidden');
+  renderDeviationMistakesList();
+}
+
+function renderDeviationMistakesList() {
+  const ids = state.deviationDrillState.mistakes;
+  elements.deviationMistakesEmpty.classList.toggle('hidden', ids.length > 0);
+  elements.deviationPracticeMistakesBtn.disabled = ids.length === 0;
+
+  elements.deviationMistakesList.innerHTML = ids
+    .map((id) => {
+      const scenario = DEVIATION_SCENARIO_BY_ID[id];
+      if (!scenario) return '';
+      return `
+        <div class="mistake-row">
+          <div class="mistake-row-label">${describeDeviationScenario(scenario)}</div>
+          <button type="button" class="mistake-remove-btn" data-remove-deviation-mistake="${id}" title="Remove from Mistakes Bank">✕</button>
+        </div>
+      `;
+    })
+    .join('');
+
+  updateDeviationMistakesBadge();
+}
+
+function startDeviationDrillSession() {
+  state.deviationDrillState.mistakes = loadDeviationMistakesFromStorage();
+  updateDeviationMistakesBadge();
+  showDeviationPracticeView();
 }
 
 function bindDeviationDrillEvents() {
   if (elements.deviationNextBtn) {
     elements.deviationNextBtn.addEventListener('click', () => drawNextDeviationScenario());
   }
+
+  if (elements.deviationTabPractice) {
+    elements.deviationTabPractice.addEventListener('click', showDeviationPracticeView);
+  }
+
+  if (elements.deviationTabMistakes) {
+    elements.deviationTabMistakes.addEventListener('click', showDeviationMistakesListView);
+  }
+
+  if (elements.deviationPracticeMistakesBtn) {
+    elements.deviationPracticeMistakesBtn.addEventListener('click', startDeviationMistakesPractice);
+  }
+
+  if (elements.deviationBackToListBtn) {
+    elements.deviationBackToListBtn.addEventListener('click', showDeviationMistakesListView);
+  }
+
+  if (elements.deviationMistakesList) {
+    elements.deviationMistakesList.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-remove-deviation-mistake]');
+      if (!button) return;
+      removeDeviationMistake(button.dataset.removeDeviationMistake);
+    });
+  }
 }
+
 
 /* ------------------------------------------------------------------------ */
 /* Count Quiz minigame (true count math, running count, and Illustrious 18  */

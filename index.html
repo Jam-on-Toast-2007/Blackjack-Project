@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>Blackjack Terminus</title>
-    <link rel="stylesheet" href="styles.css?v=blackjack-terminus-count-quiz-v2" />
+    <link rel="stylesheet" href="styles.css?v=blackjack-terminus-deviation-mistakes-v1" />
   </head>
   <body>
     <div id="app">
@@ -402,6 +402,13 @@
             <p>Practice the Illustrious 18 — the count-based index plays that override basic strategy when the true count crosses a threshold.</p>
           </div>
 
+          <div class="strategy-toolbar">
+            <div class="strategy-tabs">
+              <button type="button" class="strategy-tab active" id="deviationTabPractice">Practice All Scenarios</button>
+              <button type="button" class="strategy-tab" id="deviationTabMistakes">Mistakes Bank <span id="deviationMistakesCountBadge" class="badge-count">0</span></button>
+            </div>
+          </div>
+
           <div id="deviationProgressRow" class="strategy-progress-row">
             <div class="strategy-progress-track"><div id="deviationProgressFill" class="strategy-progress-fill"></div></div>
             <div id="deviationProgressLabel" class="strategy-progress-label">0 / 0 scenarios remaining</div>
@@ -427,7 +434,16 @@
 
           <button type="button" id="deviationNextBtn" class="menu-btn primary strategy-next-btn hidden">Next Scenario</button>
 
+          <div id="deviationMistakesPanel" class="strategy-mistakes-panel hidden">
+            <div id="deviationMistakesEmpty" class="strategy-mistakes-empty hidden">No mistakes saved yet. Anything you miss while practicing will show up here.</div>
+            <div id="deviationMistakesList" class="strategy-mistakes-list"></div>
+            <div class="toolbar compact-toolbar">
+              <button type="button" class="menu-btn accent" id="deviationPracticeMistakesBtn">Practice Mistakes</button>
+            </div>
+          </div>
+
           <div class="toolbar compact-toolbar">
+            <button type="button" class="menu-btn secondary hidden" id="deviationBackToListBtn">Back to Mistakes List</button>
             <button class="menu-btn secondary" data-screen="card-counting">Card Counting Menu</button>
           </div>
         </div>
@@ -551,6 +567,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=blackjack-terminus-count-quiz-v2"></script>
+    <script src="app.js?v=blackjack-terminus-deviation-mistakes-v1"></script>
   </body>
 </html>
