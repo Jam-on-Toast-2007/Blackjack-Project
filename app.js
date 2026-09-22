@@ -1147,15 +1147,16 @@ async function handleAction(action) {
 
   if (state.insuranceAvailable && !state.insuranceBet) {
     state.insuranceAvailable = false;
-    appendLog('Insurance declined. Reveal dealer hole card to continue.');
-    renderHand(elements.dealerHand, state.dealerHand, false);
     if (scoreHand(state.dealerHand) === 21) {
+      appendLog('Insurance declined. Dealer reveals a blackjack.');
+      renderHand(elements.dealerHand, state.dealerHand, false);
       state.roundActive = false;
       state.isDealing = true;
       await settleRound();
       state.isDealing = false;
       return;
     }
+    appendLog('Insurance declined.');
   }
 
   const applyAction = async () => {
