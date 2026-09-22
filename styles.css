@@ -2432,4 +2432,262 @@ button[data-screen="settings"] {
   .toolbar .menu-btn {
     width: min(340px, 80vw);
   }
-} 
+}
+
+/* ---------------------------------------------------------------------- */
+/* Decorative gold corner flourishes & divider accent                      */
+/* Applies identically to both color schemes - only hue tokens change.     */
+/* ---------------------------------------------------------------------- */
+
+.page-panel,
+.menu-panel,
+.trainer-panel.strategy-panel,
+.modal-box,
+.strategy-hub-card {
+  position: relative;
+}
+
+.page-panel::before,
+.menu-panel::before,
+.trainer-panel.strategy-panel::before,
+.modal-box::before,
+.strategy-hub-card::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 24px;
+  height: 24px;
+  border-top: 3px solid var(--gold);
+  border-left: 3px solid var(--gold);
+  border-radius: 6px 0 0 0;
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: 2;
+  transition: opacity 0.2s ease, box-shadow 0.2s ease;
+}
+
+.page-panel::after,
+.menu-panel::after,
+.trainer-panel.strategy-panel::after,
+.modal-box::after,
+.strategy-hub-card::after {
+  content: "";
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border-bottom: 3px solid var(--gold);
+  border-right: 3px solid var(--gold);
+  border-radius: 0 0 6px 0;
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: 2;
+  transition: opacity 0.2s ease, box-shadow 0.2s ease;
+}
+
+.divider {
+  position: relative;
+}
+
+.divider::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: linear-gradient(135deg, var(--gold-soft), var(--gold-deep));
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+  transition: box-shadow 0.2s ease;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Depth mode — 3D (excitement, "pop out") vs Flat (clean, premium, 2D)    */
+/* Toggle lives in Settings; drives [data-theme] sibling attribute         */
+/* [data-depth] on <html>. Works identically across both color schemes.    */
+/* ---------------------------------------------------------------------- */
+
+[data-depth="3d"] .page-panel::before,
+[data-depth="3d"] .menu-panel::before,
+[data-depth="3d"] .trainer-panel.strategy-panel::before,
+[data-depth="3d"] .modal-box::before,
+[data-depth="3d"] .strategy-hub-card::before,
+[data-depth="3d"] .page-panel::after,
+[data-depth="3d"] .menu-panel::after,
+[data-depth="3d"] .trainer-panel.strategy-panel::after,
+[data-depth="3d"] .modal-box::after,
+[data-depth="3d"] .strategy-hub-card::after {
+  opacity: 0.95;
+  box-shadow: 0 0 10px rgba(199, 150, 53, 0.55);
+}
+
+[data-depth="3d"] .divider::before {
+  box-shadow: 0 0 8px rgba(199, 150, 53, 0.65), 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+[data-depth="3d"] .menu-btn:hover,
+[data-depth="3d"] .control-btn:hover,
+[data-depth="3d"] .action-button:hover,
+[data-depth="3d"] .bet-button:hover,
+[data-depth="3d"] .modal-actions button:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.36),
+    inset 0 -3px 0 rgba(85, 62, 14, 0.8),
+    0 14px 0 rgba(14, 10, 10, 0.85),
+    0 26px 34px rgba(0, 0, 0, 0.34),
+    0 0 20px rgba(199, 150, 53, 0.4);
+}
+
+[data-depth="3d"] .menu-btn:active,
+[data-depth="3d"] .control-btn:active,
+[data-depth="3d"] .action-button:active,
+[data-depth="3d"] .bet-button:active,
+[data-depth="3d"] .modal-actions button:active {
+  transform: translateY(5px) scale(0.98);
+}
+
+[data-depth="3d"] .bet-chip:hover:not(:disabled) {
+  transform: translateY(-4px) scale(1.07);
+}
+
+[data-depth="3d"] .strategy-hub-card:hover,
+[data-depth="3d"] .theme-choice-btn:hover {
+  transform: translateY(-3px) scale(1.015);
+}
+
+[data-depth="3d"] .strategy-tab:hover,
+[data-depth="3d"] .quiz-option:hover,
+[data-depth="3d"] .chart-cell:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+[data-depth="3d"] .card.dealt {
+  filter: drop-shadow(0 12px 16px rgba(0, 0, 0, 0.45));
+}
+
+[data-depth="3d"] .strategy-hub-icon,
+[data-depth="3d"] .suit-glyph {
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.5));
+}
+
+/* Flat mode: clean, simple, premium — minimal bevel & motion */
+[data-depth="flat"] .menu-btn,
+[data-depth="flat"] .control-btn,
+[data-depth="flat"] .action-button,
+[data-depth="flat"] .bet-button,
+[data-depth="flat"] .modal-actions button,
+[data-depth="flat"] .bet-clear-btn,
+[data-depth="flat"] .gold-start-btn {
+  box-shadow: 0 0 0 1px rgba(199, 150, 53, 0.4), 0 2px 6px rgba(0, 0, 0, 0.28) !important;
+  text-shadow: none !important;
+}
+
+[data-depth="flat"] .menu-btn::before,
+[data-depth="flat"] .control-btn::before,
+[data-depth="flat"] .action-button::before,
+[data-depth="flat"] .bet-button::before,
+[data-depth="flat"] .modal-actions button::before,
+[data-depth="flat"] .menu-btn::after,
+[data-depth="flat"] .control-btn::after,
+[data-depth="flat"] .action-button::after,
+[data-depth="flat"] .bet-button::after,
+[data-depth="flat"] .modal-actions button::after {
+  display: none !important;
+}
+
+[data-depth="flat"] .menu-btn:hover,
+[data-depth="flat"] .control-btn:hover,
+[data-depth="flat"] .action-button:hover,
+[data-depth="flat"] .bet-button:hover,
+[data-depth="flat"] .modal-actions button:hover {
+  transform: translateY(-1px) !important;
+  filter: brightness(1.05);
+  box-shadow: 0 0 0 1px rgba(199, 150, 53, 0.6), 0 4px 10px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-depth="flat"] .menu-btn:active,
+[data-depth="flat"] .control-btn:active,
+[data-depth="flat"] .action-button:active,
+[data-depth="flat"] .bet-button:active,
+[data-depth="flat"] .modal-actions button:active {
+  transform: translateY(0) !important;
+  box-shadow: 0 0 0 1px rgba(199, 150, 53, 0.45), 0 1px 3px rgba(0, 0, 0, 0.25) !important;
+}
+
+[data-depth="flat"] .strategy-tab,
+[data-depth="flat"] .quiz-option,
+[data-depth="flat"] .chart-cell,
+[data-depth="flat"] .strategy-hub-card,
+[data-depth="flat"] .mistake-row,
+[data-depth="flat"] .theme-choice-btn {
+  box-shadow: 0 0 0 1px rgba(199, 150, 53, 0.4) !important;
+}
+
+[data-depth="flat"] .strategy-hub-card:hover,
+[data-depth="flat"] .strategy-tab:hover,
+[data-depth="flat"] .quiz-option:hover,
+[data-depth="flat"] .chart-cell:hover:not(:disabled),
+[data-depth="flat"] .theme-choice-btn:hover {
+  transform: none !important;
+  filter: brightness(1.06);
+}
+
+[data-depth="flat"] .bet-chip {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.55), 0 2px 6px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-depth="flat"] .bet-chip:hover:not(:disabled) {
+  transform: none !important;
+  filter: brightness(1.08);
+}
+
+[data-depth="flat"] .card,
+[data-depth="flat"] .card.back {
+  box-shadow: 0 0 0 1px rgba(177, 136, 50, 0.6) !important;
+}
+
+[data-depth="flat"] .card.dealt {
+  filter: none !important;
+}
+
+[data-depth="flat"] .menu-panel h1,
+[data-depth="flat"] .page-header h1,
+[data-depth="flat"] .brand {
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3)) !important;
+}
+
+[data-depth="flat"] .info-pill,
+[data-depth="flat"] .status-box,
+[data-depth="flat"] .hand-total {
+  box-shadow: inset 0 0 0 1px rgba(199, 150, 53, 0.55) !important;
+  text-shadow: none !important;
+}
+
+[data-depth="flat"] .toggle-track {
+  box-shadow: none !important;
+}
+
+[data-depth="flat"] .strategy-hub-icon,
+[data-depth="flat"] .suit-glyph {
+  filter: none !important;
+  text-shadow: none !important;
+}
+
+[data-depth="flat"] .page-panel::before,
+[data-depth="flat"] .menu-panel::before,
+[data-depth="flat"] .trainer-panel.strategy-panel::before,
+[data-depth="flat"] .modal-box::before,
+[data-depth="flat"] .strategy-hub-card::before,
+[data-depth="flat"] .page-panel::after,
+[data-depth="flat"] .menu-panel::after,
+[data-depth="flat"] .trainer-panel.strategy-panel::after,
+[data-depth="flat"] .modal-box::after,
+[data-depth="flat"] .strategy-hub-card::after {
+  opacity: 0.55;
+  box-shadow: none;
+}
+

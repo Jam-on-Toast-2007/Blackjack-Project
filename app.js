@@ -24,7 +24,8 @@ const state = {
     musicVolume: 100,
     sfxVolume: 100,
     dealingSpeed: 80,
-    colorScheme: 'mystical-casino'
+    colorScheme: 'mystical-casino',
+    depthMode: '3d'
   },
   presetName: 'Training',
   shoe: [],
@@ -450,10 +451,15 @@ function applyColorScheme(scheme) {
   document.documentElement.dataset.theme = scheme === 'classic-casino' ? 'classic-casino' : 'mystical-casino';
 }
 
+function applyDepthMode(mode) {
+  document.documentElement.dataset.depth = mode === 'flat' ? 'flat' : '3d';
+}
+
 function init() {
   state.settings = { ...state.settings };
   state.shoe = createShoe(state.settings.decksInShoe);
   applyColorScheme(state.settings.colorScheme);
+  applyDepthMode(state.settings.depthMode);
   setupScreenMusic();
   updateHud();
   renderRulesScreen();
@@ -2868,6 +2874,7 @@ function renderSettingsScreen() {
   const musicValue = state.settings.musicVolume ?? 100;
   const sfxValue = state.settings.sfxVolume ?? 100;
   const activeScheme = state.settings.colorScheme || 'mystical-casino';
+  const is3d = (state.settings.depthMode || '3d') === '3d';
 
   content.innerHTML = `
     <section class="info-block settings-block">
@@ -2901,6 +2908,15 @@ function renderSettingsScreen() {
             <span class="theme-choice-tagline">Emerald &amp; jade green</span>
           </button>
         </div>
+      </div>
+
+      <div class="slider-row">
+        <label for="depthModeToggle">3D mode</label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="depthModeToggle" ${is3d ? 'checked' : ''} />
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span class="toggle-label">${is3d ? 'On — buttons, chips and cards pop with extra depth' : 'Off — clean, flat, premium look'}</span>
+        </label>
       </div>
     </section>
   `;
@@ -2940,6 +2956,22 @@ function renderSettingsScreen() {
       playButtonTone({ frequency: 380, duration: 0.09, volume: 0.11, type: 'triangle', sweep: 24 });
     });
   });
+
+  const depthToggle = document.getElementById('depthModeToggle');
+  if (depthToggle) {
+    depthToggle.addEventListener('change', (event) => {
+      const mode = event.target.checked ? '3d' : 'flat';
+      state.settings.depthMode = mode;
+      applyDepthMode(mode);
+      const label = depthToggle.parentElement.querySelector('.toggle-label');
+      if (label) {
+        label.textContent = mode === '3d'
+          ? 'On — buttons, chips and cards pop with extra depth'
+          : 'Off — clean, flat, premium look';
+      }
+      playButtonTone({ frequency: 360, duration: 0.09, volume: 0.11, type: 'triangle', sweep: 24 });
+    });
+  }
 }
 
 function renderStrategyScreen() {
