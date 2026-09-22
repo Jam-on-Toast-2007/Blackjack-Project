@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>Blackjack Terminus</title>
-    <link rel="stylesheet" href="styles.css?v=blackjack-terminus-guest-play-v9" />
+    <link rel="stylesheet" href="styles.css?v=blackjack-terminus-guest-play-v10" />
   </head>
   <body>
     <div id="app">
@@ -492,8 +492,15 @@
         <p id="modalMessage"></p>
         <div id="modalActions" class="modal-actions"></div>
       </div>
+      <div id="profileInfoBox" class="modal-box profile-info-box hidden">
+        <h3 id="profileInfoTitle"></h3>
+        <ul id="profileInfoList" class="profile-info-list"></ul>
+        <div class="modal-actions">
+          <button type="button" id="profileInfoCloseBtn" class="gold-btn">Close</button>
+        </div>
+      </div>
     </div>
 
-    <script src="app.js?v=blackjack-terminus-guest-play-v9"></script>
+    <script src="app.js?v=blackjack-terminus-guest-play-v10"></script>
   </body>
 </html>

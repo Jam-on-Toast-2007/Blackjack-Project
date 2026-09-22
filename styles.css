@@ -2552,6 +2552,8 @@ button.gold-btn,
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
+  gap: 20px;
   z-index: 100;
 }
 
@@ -2566,6 +2568,24 @@ button.gold-btn,
   border-radius: 18px;
   padding: 24px 20px 20px;
   box-shadow: 0 32px 80px rgba(0, 0, 0, 0.5);
+}
+
+.profile-info-box {
+  width: min(240px, 68vw);
+  padding: 18px 16px 16px;
+}
+
+.profile-info-list {
+  list-style: disc;
+  margin: 0 0 16px;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: #f4f0df;
+  text-align: left;
 }
 
 .modal-box h3 {

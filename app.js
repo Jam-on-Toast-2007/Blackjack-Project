@@ -496,7 +496,11 @@ const elements = {
   modalOverlay: document.getElementById('modalOverlay'),
   modalTitle: document.getElementById('modalTitle'),
   modalMessage: document.getElementById('modalMessage'),
-  modalActions: document.getElementById('modalActions')
+  modalActions: document.getElementById('modalActions'),
+  profileInfoBox: document.getElementById('profileInfoBox'),
+  profileInfoTitle: document.getElementById('profileInfoTitle'),
+  profileInfoList: document.getElementById('profileInfoList'),
+  profileInfoCloseBtn: document.getElementById('profileInfoCloseBtn')
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -3947,21 +3951,43 @@ function openProfilePickerModal() {
 
   elements.modalActions.appendChild(list);
   elements.modalActions.appendChild(createButton);
+  closeProfileInfoPanel();
   showModalOverlay();
 }
 
+function closeProfileInfoPanel() {
+  if (elements.profileInfoBox) {
+    elements.profileInfoBox.classList.add('hidden');
+  }
+}
+
 function openProfileInfoModal(profile) {
+  if (!elements.profileInfoBox) return;
   const presetDescription = describePreset(profile.presetName, profile.settings);
-  const inactiveNote = profile.active === false ? '\n\nThis profile is currently inactive (out of funds).' : '';
-  showModal(
-    profile.name,
-    `Balance: ${formatCurrency(profile.balance)}\nPreset: ${profile.presetName}\n${presetDescription}${inactiveNote}`,
-    ['Back'],
-    () => openProfilePickerModal()
-  );
+
+  elements.profileInfoTitle.textContent = profile.name;
+  elements.profileInfoList.innerHTML = '';
+
+  const facts = [
+    `Balance: ${formatCurrency(profile.balance)}`,
+    `Preset: ${profile.presetName}`,
+    presetDescription
+  ];
+  if (profile.active === false) {
+    facts.push('Status: inactive (out of funds)');
+  }
+
+  facts.forEach((fact) => {
+    const item = document.createElement('li');
+    item.textContent = fact;
+    elements.profileInfoList.appendChild(item);
+  });
+
+  elements.profileInfoBox.classList.remove('hidden');
 }
 
 function confirmDeleteProfile(profile) {
+  closeProfileInfoPanel();
   showModal(
     'Delete Profile',
     `Are you sure you want to permanently delete "${profile.name}"? This cannot be undone.`,
@@ -3982,6 +4008,7 @@ function confirmDeleteProfile(profile) {
 }
 
 function openCreateProfileModal() {
+  closeProfileInfoPanel();
   elements.modalTitle.textContent = 'Create New Profile';
   elements.modalMessage.textContent = 'Give your profile a unique name and choose a preset. New profiles start with a $1,000 bankroll.';
   elements.modalActions.innerHTML = '';
@@ -4201,6 +4228,10 @@ function bindProfileScreenEvents() {
 
   if (elements.profileStatsBackBtn) {
     elements.profileStatsBackBtn.addEventListener('click', () => renderScreen('profile-menu'));
+  }
+
+  if (elements.profileInfoCloseBtn) {
+    elements.profileInfoCloseBtn.addEventListener('click', () => closeProfileInfoPanel());
   }
 
   if (elements.trueCountDeviationToggle) {
