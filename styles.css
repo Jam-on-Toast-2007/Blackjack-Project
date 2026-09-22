@@ -1286,6 +1286,7 @@ button[data-screen="settings"] {
   background: linear-gradient(180deg, #f2f4f6 0%, #cfd6db 40%, #9aa3aa 70%, #6b727a 100%);
   border: 1px solid rgba(20, 20, 22, 0.8);
   color: #14171a;
+  font-size: 1.05rem;
   text-shadow: none;
 }
 
