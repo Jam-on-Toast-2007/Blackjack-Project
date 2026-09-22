@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 60" fill="none">
+  <defs>
+    <linearGradient id="d" x1="0" y1="0" x2="600" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#a9782a" stop-opacity="0"/>
+      <stop offset="0.14" stop-color="#e8bf5a"/>
+      <stop offset="0.5" stop-color="#fff3c4"/>
+      <stop offset="0.86" stop-color="#e8bf5a"/>
+      <stop offset="1" stop-color="#a9782a" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="f" x1="270" y1="10" x2="330" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff3c4"/>
+      <stop offset="1" stop-color="#c99a44"/>
+    </linearGradient>
+  </defs>
+  <path d="M18 30 H262" stroke="url(#d)" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M338 30 H582" stroke="url(#d)" stroke-width="1.6" stroke-linecap="round"/>
+  <circle cx="271" cy="30" r="2.4" fill="#f0cf7a"/>
+  <circle cx="280" cy="30" r="1.6" fill="#e3ba62" opacity="0.85"/>
+  <circle cx="287" cy="30" r="1" fill="#c99a44" opacity="0.6"/>
+  <circle cx="329" cy="30" r="2.4" fill="#f0cf7a"/>
+  <circle cx="320" cy="30" r="1.6" fill="#e3ba62" opacity="0.85"/>
+  <circle cx="313" cy="30" r="1" fill="#c99a44" opacity="0.6"/>
+  <path d="M300 12 C305 19 305 24 300 30 C295 24 295 19 300 12 Z" fill="url(#f)"/>
+  <path d="M300 30 C305 36 305 41 300 48 C295 41 295 36 300 30 Z" fill="url(#f)"/>
+  <path d="M284 30 C291 25 296 25 300 30 C296 35 291 35 284 30 Z" fill="url(#f)"/>
+  <path d="M316 30 C309 25 304 25 300 30 C304 35 309 35 316 30 Z" fill="url(#f)"/>
+  <circle cx="300" cy="30" r="2.6" fill="url(#f)"/>
+  <path d="M18 30 C7 30 3 23 5 17 C7 12 14 12 16 17" stroke="#e3ba62" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+  <path d="M582 30 C593 30 597 23 595 17 C593 12 586 12 584 17" stroke="#e3ba62" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+</svg>

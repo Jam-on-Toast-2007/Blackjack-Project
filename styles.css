@@ -1772,6 +1772,8 @@ button[data-screen="settings"] {
 }
 
 .strategy-hub-icon {
+  position: relative;
+  display: inline-block;
   font-size: 2.6rem;
   line-height: 1;
 }
@@ -2435,73 +2437,40 @@ button[data-screen="settings"] {
 }
 
 /* ---------------------------------------------------------------------- */
-/* Decorative gold corner flourishes & divider accent                      */
+/* Decorative gold curvy-flourish corners & divider ornament               */
 /* Applies identically to both color schemes - only hue tokens change.     */
 /* ---------------------------------------------------------------------- */
 
 .page-panel,
 .menu-panel,
 .trainer-panel.strategy-panel,
-.modal-box,
-.strategy-hub-card {
+.modal-box {
   position: relative;
 }
 
 .page-panel::before,
 .menu-panel::before,
 .trainer-panel.strategy-panel::before,
-.modal-box::before,
-.strategy-hub-card::before {
+.modal-box::before {
   content: "";
   position: absolute;
-  top: 8px;
-  left: 8px;
-  width: 24px;
-  height: 24px;
-  border-top: 3px solid var(--gold);
-  border-left: 3px solid var(--gold);
-  border-radius: 6px 0 0 0;
-  opacity: 0.7;
+  inset: 0;
+  background:
+    url("assets/flourish-corner-tl.svg") left 6px top 6px / 42px 42px no-repeat,
+    url("assets/flourish-corner-tr.svg") right 6px top 6px / 42px 42px no-repeat,
+    url("assets/flourish-corner-bl.svg") left 6px bottom 6px / 42px 42px no-repeat,
+    url("assets/flourish-corner-br.svg") right 6px bottom 6px / 42px 42px no-repeat;
+  opacity: 0.85;
   pointer-events: none;
   z-index: 2;
-  transition: opacity 0.2s ease, box-shadow 0.2s ease;
-}
-
-.page-panel::after,
-.menu-panel::after,
-.trainer-panel.strategy-panel::after,
-.modal-box::after,
-.strategy-hub-card::after {
-  content: "";
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
-  width: 24px;
-  height: 24px;
-  border-bottom: 3px solid var(--gold);
-  border-right: 3px solid var(--gold);
-  border-radius: 0 0 6px 0;
-  opacity: 0.7;
-  pointer-events: none;
-  z-index: 2;
-  transition: opacity 0.2s ease, box-shadow 0.2s ease;
+  transition: opacity 0.2s ease, filter 0.2s ease;
 }
 
 .divider {
-  position: relative;
-}
-
-.divider::before {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 9px;
-  height: 9px;
-  transform: translate(-50%, -50%) rotate(45deg);
-  background: linear-gradient(135deg, var(--gold-soft), var(--gold-deep));
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
-  transition: box-shadow 0.2s ease;
+  background: url("assets/flourish-divider.svg") no-repeat center / contain;
+  height: 34px;
+  opacity: 0.92;
+  transition: filter 0.2s ease, opacity 0.2s ease;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -2513,19 +2482,13 @@ button[data-screen="settings"] {
 [data-depth="3d"] .page-panel::before,
 [data-depth="3d"] .menu-panel::before,
 [data-depth="3d"] .trainer-panel.strategy-panel::before,
-[data-depth="3d"] .modal-box::before,
-[data-depth="3d"] .strategy-hub-card::before,
-[data-depth="3d"] .page-panel::after,
-[data-depth="3d"] .menu-panel::after,
-[data-depth="3d"] .trainer-panel.strategy-panel::after,
-[data-depth="3d"] .modal-box::after,
-[data-depth="3d"] .strategy-hub-card::after {
-  opacity: 0.95;
-  box-shadow: 0 0 10px rgba(199, 150, 53, 0.55);
+[data-depth="3d"] .modal-box::before {
+  opacity: 1;
+  filter: drop-shadow(0 0 6px rgba(199, 150, 53, 0.6));
 }
 
-[data-depth="3d"] .divider::before {
-  box-shadow: 0 0 8px rgba(199, 150, 53, 0.65), 0 0 0 1px rgba(0, 0, 0, 0.4);
+[data-depth="3d"] .divider {
+  filter: drop-shadow(0 0 8px rgba(199, 150, 53, 0.55));
 }
 
 [data-depth="3d"] .menu-btn:hover,
@@ -2550,8 +2513,26 @@ button[data-screen="settings"] {
   transform: translateY(5px) scale(0.98);
 }
 
+[data-depth="3d"] .bet-chip {
+  transform: perspective(260px) rotateX(9deg);
+  box-shadow:
+    inset 0 0 0 2px rgba(255,255,255,0.28),
+    inset 0 0 26px rgba(0,0,0,0.18),
+    0 14px 22px rgba(0,0,0,0.5),
+    0 0 0 1px rgba(17, 20, 26, 0.4),
+    4px 10px 0 -3px rgba(0, 0, 0, 0.18),
+    8px 18px 0 -6px rgba(0, 0, 0, 0.14);
+}
+
 [data-depth="3d"] .bet-chip:hover:not(:disabled) {
-  transform: translateY(-4px) scale(1.07);
+  transform: perspective(260px) rotateX(5deg) translateY(-6px) scale(1.08);
+  box-shadow:
+    inset 0 0 0 2px rgba(255,255,255,0.34),
+    inset 0 0 28px rgba(0,0,0,0.2),
+    0 20px 28px rgba(0,0,0,0.55),
+    0 0 0 1px rgba(17, 20, 26, 0.45),
+    4px 14px 0 -3px rgba(0, 0, 0, 0.2),
+    8px 22px 0 -6px rgba(0, 0, 0, 0.16);
 }
 
 [data-depth="3d"] .strategy-hub-card:hover,
@@ -2565,13 +2546,91 @@ button[data-screen="settings"] {
   transform: translateY(-2px);
 }
 
+/* Panels feel like they're physically lifted off the felt backdrop */
+[data-depth="3d"] .page-panel,
+[data-depth="3d"] .menu-panel,
+[data-depth="3d"] .table-shell,
+[data-depth="3d"] .trainer-panel {
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.45),
+    inset 0 0 18px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(199, 150, 53, 0.38),
+    0 34px 60px rgba(0, 0, 0, 0.5),
+    0 0 40px rgba(199, 150, 53, 0.12);
+}
+
+[data-depth="3d"] .dealer-zone,
+[data-depth="3d"] .player-zone {
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.2),
+    inset 0 0 18px rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(199, 150, 53, 0.22),
+    0 0 0 3px rgba(19, 13, 10, 0.35),
+    0 18px 30px rgba(0, 0, 0, 0.35);
+}
+
+/* Resting cards float above the felt with a soft cast shadow, and fan out
+   slightly like a hand physically held/laid out on the table. */
+[data-depth="3d"] .card {
+  filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.4));
+}
+
 [data-depth="3d"] .card.dealt {
-  filter: drop-shadow(0 12px 16px rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(0 14px 20px rgba(0, 0, 0, 0.48));
+}
+
+[data-depth="3d"] .hand-row .card:nth-child(odd) {
+  transform: rotate(-2.5deg) translateY(3px);
+}
+
+[data-depth="3d"] .hand-row .card:nth-child(even) {
+  transform: rotate(2.5deg) translateY(1px);
+}
+
+[data-depth="3d"] .hand-row .card:only-child {
+  transform: none;
+}
+
+/* HUD plaques get a stamped-metal, engraved-coin treatment */
+[data-depth="3d"] .info-pill,
+[data-depth="3d"] .status-box,
+[data-depth="3d"] .hand-total {
+  box-shadow:
+    inset 0 0 0 2px rgba(199, 150, 53, 0.88),
+    inset 0 2px 3px rgba(255, 255, 255, 0.22),
+    inset 0 -3px 4px rgba(0, 0, 0, 0.45),
+    0 8px 14px rgba(0, 0, 0, 0.4),
+    0 0 14px rgba(199, 150, 53, 0.18);
+}
+
+/* Strategy hub icons sit on a small raised gold medallion for extra pop */
+[data-depth="3d"] .strategy-hub-icon::before {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%, rgba(255, 243, 196, 0.5), rgba(199, 150, 53, 0.18) 55%, transparent 72%);
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.3),
+    inset 0 -4px 6px rgba(0, 0, 0, 0.35),
+    0 6px 10px rgba(0, 0, 0, 0.35);
+  z-index: -1;
 }
 
 [data-depth="3d"] .strategy-hub-icon,
 [data-depth="3d"] .suit-glyph {
   filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.5));
+}
+
+[data-depth="3d"] .menu-panel h1,
+[data-depth="3d"] .page-header h1,
+[data-depth="3d"] .brand {
+  filter:
+    drop-shadow(0 1px 0 rgba(255, 255, 255, 0.6))
+    drop-shadow(0 3px 0 rgba(70, 74, 79, 0.55))
+    drop-shadow(0 8px 16px rgba(0, 0, 0, 0.35))
+    drop-shadow(0 20px 30px rgba(0, 0, 0, 0.4))
+    drop-shadow(0 0 22px rgba(199, 150, 53, 0.28));
 }
 
 /* Flat mode: clean, simple, premium — minimal bevel & motion */
@@ -2680,14 +2739,13 @@ button[data-screen="settings"] {
 [data-depth="flat"] .page-panel::before,
 [data-depth="flat"] .menu-panel::before,
 [data-depth="flat"] .trainer-panel.strategy-panel::before,
-[data-depth="flat"] .modal-box::before,
-[data-depth="flat"] .strategy-hub-card::before,
-[data-depth="flat"] .page-panel::after,
-[data-depth="flat"] .menu-panel::after,
-[data-depth="flat"] .trainer-panel.strategy-panel::after,
-[data-depth="flat"] .modal-box::after,
-[data-depth="flat"] .strategy-hub-card::after {
-  opacity: 0.55;
-  box-shadow: none;
+[data-depth="flat"] .modal-box::before {
+  opacity: 0.5;
+  filter: none;
+}
+
+[data-depth="flat"] .divider {
+  opacity: 0.65;
+  filter: none;
 }
 
