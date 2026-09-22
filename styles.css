@@ -1253,7 +1253,8 @@ button[data-screen="settings"] {
 
 .profile-row-name {
   flex: 1;
-  text-align: left;
+  max-width: 78%;
+  text-align: center;
   cursor: pointer;
 }
 
@@ -1272,7 +1273,8 @@ button[data-screen="settings"] {
   background: rgba(13, 8, 15, 0.85);
   color: var(--gold-soft);
   font-weight: 800;
-  font-size: 0.85rem;
+  font-size: 1.6rem;
+  line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
