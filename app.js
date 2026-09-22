@@ -473,7 +473,6 @@ const elements = {
   trueCountDeviationToggle: document.getElementById('trueCountDeviationToggle'),
   trueCountDeviationLabel: document.getElementById('trueCountDeviationLabel'),
   entryPlayBtn: document.getElementById('entryPlayBtn'),
-  entryPlayCaption: document.getElementById('entryPlayCaption'),
   entryUseProfileBtn: document.getElementById('entryUseProfileBtn'),
   entryCreateProfileBtn: document.getElementById('entryCreateProfileBtn'),
   profileMenuName: document.getElementById('profileMenuName'),
@@ -803,10 +802,6 @@ function renderScreen(name) {
 
   if (name === 'counting-deviation-drill' && previousScreen !== 'counting-deviation-drill') {
     startDeviationDrillSession();
-  }
-
-  if (name === 'blackjack-entry') {
-    renderBlackjackEntryScreen();
   }
 
   if (name === 'profile-menu') {
@@ -3802,11 +3797,6 @@ function handleInsufficientFunds() {
   showModalOverlay();
 }
 
-function renderBlackjackEntryScreen() {
-  if (!elements.entryPlayCaption) return;
-  elements.entryPlayCaption.textContent = "Play starts an instant guest practice session — no profile needed, and your hands and stats won't be saved. Use \"Use Existing Profile\" or \"Create New Profile\" if you want your progress tracked.";
-}
-
 function renderProfileMenuScreen() {
   const profile = getActiveProfile();
   if (!profile) {
@@ -4006,13 +3996,15 @@ function openCreateProfileModal() {
   nameInput.maxLength = 24;
 
   const presetRow = document.createElement('div');
-  presetRow.className = 'custom-settings-list';
+  presetRow.className = 'preset-option-row';
 
   let selectedPreset = 'Training';
 
+  const presetLabels = [];
+
   ['Training', 'True Game', 'Custom'].forEach((name) => {
     const row = document.createElement('label');
-    row.className = 'custom-setting-item';
+    row.className = 'preset-option';
 
     const radio = document.createElement('input');
     radio.type = 'radio';
@@ -4020,6 +4012,9 @@ function openCreateProfileModal() {
     radio.checked = name === selectedPreset;
     radio.addEventListener('change', () => {
       selectedPreset = name;
+      presetLabels.forEach(({ el, presetName }) => {
+        el.classList.toggle('preset-option-selected', presetName === name);
+      });
     });
 
     const text = document.createElement('span');
@@ -4028,10 +4023,15 @@ function openCreateProfileModal() {
     row.appendChild(radio);
     row.appendChild(text);
     presetRow.appendChild(row);
+    presetLabels.push({ el: row, presetName: name });
+    if (name === selectedPreset) row.classList.add('preset-option-selected');
   });
 
   const errorText = document.createElement('p');
   errorText.className = 'profile-form-error hidden';
+
+  const buttonRow = document.createElement('div');
+  buttonRow.className = 'profile-form-button-row';
 
   const createButton = document.createElement('button');
   createButton.textContent = 'Create Profile';
@@ -4067,13 +4067,15 @@ function openCreateProfileModal() {
     renderScreen('blackjack-entry');
   });
 
+  buttonRow.appendChild(createButton);
+  buttonRow.appendChild(cancelButton);
+
   form.appendChild(nameInput);
   form.appendChild(presetRow);
   form.appendChild(errorText);
+  form.appendChild(buttonRow);
 
   elements.modalActions.appendChild(form);
-  elements.modalActions.appendChild(createButton);
-  elements.modalActions.appendChild(cancelButton);
   showModalOverlay();
 }
 
