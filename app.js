@@ -473,6 +473,7 @@ const elements = {
   trueCountDeviationToggle: document.getElementById('trueCountDeviationToggle'),
   trueCountDeviationLabel: document.getElementById('trueCountDeviationLabel'),
   entryPlayBtn: document.getElementById('entryPlayBtn'),
+  entryPlayCaption: document.getElementById('entryPlayCaption'),
   entryUseProfileBtn: document.getElementById('entryUseProfileBtn'),
   entryCreateProfileBtn: document.getElementById('entryCreateProfileBtn'),
   profileMenuName: document.getElementById('profileMenuName'),
@@ -3668,6 +3669,7 @@ function loadProfileIntoLiveState(profile) {
   state.countingState.runningCount = 0;
   state.countingState.decksRemaining = state.shoe.length / 52;
   state.countingState.trueCount = 0;
+  updateHud();
 }
 
 function saveLiveStateIntoProfile() {
@@ -3677,6 +3679,33 @@ function saveLiveStateIntoProfile() {
   profile.settings = { ...profile.settings, ...state.settings };
   profile.presetName = state.presetName;
   persistProfiles();
+}
+
+// Lets someone play a fully functional round of blackjack with no profile at
+// all — a quick "just let me practice" path. Nothing here touches
+// state.profiles/state.activeProfileId, and every stat-recording function
+// already no-ops when getActiveProfile() returns null, so guest hands simply
+// aren't tracked anywhere and nothing is persisted to storage.
+function startGuestSession() {
+  state.activeProfileId = null;
+  state.presetName = 'Guest Practice';
+  state.settings = { ...state.settings, ...presetSettingsFor('Training') };
+  state.balance = 1000;
+  state.currentBet = 0;
+  state.dealerHand = [];
+  state.playerHands = [];
+  state.handBets = [];
+  state.handStatuses = [];
+  state.activeHandIndex = 0;
+  state.insuranceBet = 0;
+  state.insuranceAvailable = false;
+  state.roundActive = false;
+  state.awaitingBet = false;
+  state.shoe = createShoe(state.settings.decksInShoe);
+  state.countingState.runningCount = 0;
+  state.countingState.decksRemaining = state.shoe.length / 52;
+  state.countingState.trueCount = 0;
+  updateHud();
 }
 
 function deleteProfile(profileId) {
@@ -3712,7 +3741,7 @@ function leaveBlackjackTable() {
   if (state.activeProfileId) {
     renderScreen('profile-menu');
   } else {
-    renderScreen('menu');
+    renderScreen('blackjack-entry');
   }
 }
 
@@ -3722,9 +3751,28 @@ function handleInsufficientFunds() {
   playOutcomeSound(false);
 
   if (!profile) {
-    showModal('Out of Funds', 'You are out of funds. Head back to the main menu to create or select a profile.', ['OK'], () => {
+    elements.modalTitle.textContent = 'Out of Funds';
+    elements.modalMessage.textContent = `Your guest practice balance is down to ${formatCurrency(state.balance)}, which isn't enough to place even the smallest bet (${formatCurrency(MIN_CHIP_VALUE)}). Since this is an untracked guest session, you can restart it with a fresh $1,000, or head back to the main menu.`;
+    elements.modalActions.innerHTML = '';
+
+    const restartButton = document.createElement('button');
+    restartButton.textContent = 'Restart Practice Session';
+    restartButton.addEventListener('click', () => {
+      hideModal();
+      startGuestSession();
+      renderScreen('blackjack');
+    });
+
+    const menuButton = document.createElement('button');
+    menuButton.textContent = 'Main Menu';
+    menuButton.addEventListener('click', () => {
+      hideModal();
       renderScreen('menu');
     });
+
+    elements.modalActions.appendChild(restartButton);
+    elements.modalActions.appendChild(menuButton);
+    showModalOverlay();
     return;
   }
 
@@ -3755,9 +3803,20 @@ function handleInsufficientFunds() {
 }
 
 function renderBlackjackEntryScreen() {
-  // Nothing dynamic to compute today, but kept as a hook so future profile
-  // summaries (e.g. "Continue as Alex") can be layered in without touching
-  // renderScreen()'s dispatch logic.
+  if (!elements.entryPlayCaption) return;
+  const profile = getActiveProfile();
+
+  if (!profile) {
+    elements.entryPlayCaption.textContent = "No profile? Play now as a guest — it's a full practice round, but your hands and stats won't be saved.";
+    return;
+  }
+
+  if (profile.active === false) {
+    elements.entryPlayCaption.textContent = `"${profile.name}" is out of funds and inactive — choose another profile or create a new one to keep playing.`;
+    return;
+  }
+
+  elements.entryPlayCaption.textContent = `Continue as "${profile.name}" (Balance: ${formatCurrency(profile.balance)}).`;
 }
 
 function renderProfileMenuScreen() {
@@ -4121,7 +4180,8 @@ function bindProfileScreenEvents() {
     elements.entryPlayBtn.addEventListener('click', () => {
       const profile = getActiveProfile();
       if (!profile) {
-        openProfilePickerModal();
+        startGuestSession();
+        renderScreen('blackjack');
         return;
       }
       if (profile.active === false) {

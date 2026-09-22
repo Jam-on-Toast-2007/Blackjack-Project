@@ -1227,6 +1227,15 @@ button[data-screen="settings"] {
   margin: -6px auto 6px;
 }
 
+.entry-caption {
+  color: #d9c9a3;
+  font-size: 0.9rem;
+  max-width: 380px;
+  text-align: center;
+  margin: -6px auto 4px;
+  opacity: 0.85;
+}
+
 .profile-list {
   display: grid;
   gap: 10px;
