@@ -1253,23 +1253,23 @@ button[data-screen="settings"] {
 .profile-row-name {
   flex: 1;
   text-align: left;
-  background: none;
-  border: none;
-  color: var(--text);
-  font-weight: 700;
-  padding: 6px 4px;
   cursor: pointer;
 }
 
-.profile-icon-btn {
-  width: 30px;
-  height: 30px;
-  min-width: 30px;
-  border-radius: 50%;
+.modal-actions button.profile-row-name {
+  padding: 6px 10px;
+}
+
+.modal-actions button.profile-icon-btn {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  border-radius: 4px;
   border: 1px solid rgba(199, 150, 53, 0.7);
   background: rgba(13, 8, 15, 0.85);
   color: var(--gold-soft);
   font-weight: 800;
+  font-size: 0.72rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1277,9 +1277,35 @@ button[data-screen="settings"] {
   cursor: pointer;
 }
 
-.profile-delete-btn {
-  color: #ff8c7a;
-  border-color: rgba(255, 140, 122, 0.7);
+.modal-actions button.profile-info-btn {
+  background: linear-gradient(180deg, #f2f4f6 0%, #cfd6db 40%, #9aa3aa 70%, #6b727a 100%);
+  border: 1px solid rgba(20, 20, 22, 0.8);
+  color: #14171a;
+  text-shadow: none;
+}
+
+.modal-actions button.profile-delete-btn {
+  background: linear-gradient(180deg, #ff8f80 0%, #e8543f 45%, #a8271a 100%);
+  border: 1px solid rgba(60, 10, 6, 0.85);
+  color: #2a0704;
+  text-shadow: none;
+}
+
+.gold-btn,
+.menu-btn.gold-btn,
+button.gold-btn,
+.modal-actions button.gold-btn {
+  background: linear-gradient(180deg, #f5d888 0%, #e5bb5c 18%, #c98e2d 49%, #8d621a 100%);
+  border: 3px solid rgba(8, 7, 7, 0.96);
+  color: #120d08;
+  font-weight: 800;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4), 0 -1px 0 rgba(0, 0, 0, 0.16);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.72),
+    inset 0 -4px 0 rgba(75, 46, 10, 0.4),
+    0 7px 0 rgba(17, 11, 5, 0.94),
+    0 12px 18px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(199, 150, 53, 0.2);
 }
 
 .profile-create-btn {

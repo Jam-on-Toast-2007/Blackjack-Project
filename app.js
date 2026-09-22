@@ -3903,7 +3903,7 @@ function openProfilePickerModal() {
 
     const nameBtn = document.createElement('button');
     nameBtn.type = 'button';
-    nameBtn.className = 'profile-row-name';
+    nameBtn.className = 'profile-row-name gold-btn';
     nameBtn.textContent = profile.active === false ? `${profile.name} (inactive)` : profile.name;
     nameBtn.addEventListener('click', () => {
       hideModal();
@@ -4062,6 +4062,7 @@ function openCreateProfileModal() {
 
   const cancelButton = document.createElement('button');
   cancelButton.textContent = 'Cancel';
+  cancelButton.className = 'gold-btn';
   cancelButton.addEventListener('click', () => {
     hideModal();
     renderScreen('blackjack-entry');
