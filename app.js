@@ -21,6 +21,8 @@ const state = {
     trainingMode: true,
     showHandTotals: true,
     decksInShoe: 6,
+    dealerHitsSoft17: true,
+    trueCountDeviations: false,
     musicVolume: 100,
     sfxVolume: 100,
     dealingSpeed: 80,
@@ -28,6 +30,8 @@ const state = {
     depthMode: '3d'
   },
   presetName: 'Training',
+  profiles: [],
+  activeProfileId: null,
   shoe: [],
   dealerHand: [],
   playerHands: [],
@@ -75,6 +79,15 @@ const state = {
     sessionId: 0,
     isDealing: false
   },
+  deviationDrillState: {
+    pool: [],
+    currentEntry: null,
+    currentHand: [],
+    currentDealerCard: null,
+    currentTrueCount: 0,
+    answered: false,
+    sessionTotal: 0
+  },
   awaitingBet: false,
   modal: null,
   isDealing: false,
@@ -84,6 +97,9 @@ const state = {
 
 const DEAL_DELAY_MS = 333;
 const ROUND_SUMMARY_DELAY_MS = 1000;
+const PROFILES_STORAGE_KEY = 'blackjackTerminusProfiles';
+const ACTIVE_PROFILE_STORAGE_KEY = 'blackjackTerminusActiveProfileId';
+const MIN_CHIP_VALUE = CHIP_DEFINITIONS.reduce((min, chip) => Math.min(min, chip.value), Infinity);
 
 function clampSetting(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -229,6 +245,11 @@ function clearTableForNewRound() {
 }
 
 function showBetSelectionModal() {
+  if (state.balance < MIN_CHIP_VALUE) {
+    handleInsufficientFunds();
+    return;
+  }
+
   const currentTotal = Number(state.currentBet || 0);
   const balance = Number(state.balance || 0);
 
@@ -308,8 +329,24 @@ function showBetSelectionModal() {
     startRound();
   });
 
+  const leaveButton = document.createElement('button');
+  leaveButton.type = 'button';
+  leaveButton.className = 'bet-clear-btn';
+  leaveButton.style.setProperty('background', 'linear-gradient(180deg, #dfe4ea 0%, #bec7d1 16%, #9aa4ad 45%, #69767f 100%)');
+  leaveButton.style.setProperty('color', '#171a20');
+  leaveButton.style.setProperty('border', '3px solid rgba(8, 7, 7, 0.96)');
+  leaveButton.style.setProperty('border-radius', '12px');
+  leaveButton.style.setProperty('box-shadow', 'inset 0 2px 0 rgba(255,255,255,0.72), inset 0 -4px 0 rgba(75, 46, 10, 0.4), 0 7px 0 rgba(17, 11, 5, 0.94), 0 12px 18px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(199, 150, 53, 0.2)');
+  leaveButton.textContent = 'Leave Table';
+  leaveButton.addEventListener('click', () => {
+    hideModal();
+    state.awaitingBet = false;
+    leaveBlackjackTable();
+  });
+
   controls.appendChild(clearButton);
   controls.appendChild(startButton);
+  controls.appendChild(leaveButton);
 
   elements.modalActions.appendChild(tray);
   elements.modalActions.appendChild(totalLabel);
@@ -337,13 +374,10 @@ function showRoundSummaryModal(summary) {
     hideModal();
     state.awaitingBet = false;
     renderBetPanel();
-    if (state.balance > 0) {
+    if (state.balance >= MIN_CHIP_VALUE) {
       showBetSelectionModal();
     } else {
-      resetGame();
-      showModal('Out of Money', 'You are out of funds. Starting a fresh bankroll.', ['OK'], () => {
-        showBetSelectionModal();
-      });
+      handleInsufficientFunds();
     }
   });
 
@@ -436,6 +470,29 @@ const elements = {
   drillResetBtn: document.getElementById('drillResetBtn'),
   gameDealingSpeedSlider: document.getElementById('gameDealingSpeedSlider'),
   gameDealingSpeedValue: document.getElementById('gameDealingSpeedValue'),
+  trueCountDeviationToggle: document.getElementById('trueCountDeviationToggle'),
+  trueCountDeviationLabel: document.getElementById('trueCountDeviationLabel'),
+  entryPlayBtn: document.getElementById('entryPlayBtn'),
+  entryUseProfileBtn: document.getElementById('entryUseProfileBtn'),
+  entryCreateProfileBtn: document.getElementById('entryCreateProfileBtn'),
+  profileMenuName: document.getElementById('profileMenuName'),
+  profileMenuSummary: document.getElementById('profileMenuSummary'),
+  profileMenuInactiveNote: document.getElementById('profileMenuInactiveNote'),
+  profileMenuPlayBtn: document.getElementById('profileMenuPlayBtn'),
+  profileMenuStatsBtn: document.getElementById('profileMenuStatsBtn'),
+  profileMenuSwitchBtn: document.getElementById('profileMenuSwitchBtn'),
+  profileStatsName: document.getElementById('profileStatsName'),
+  profileStatsContent: document.getElementById('profileStatsContent'),
+  profileStatsBackBtn: document.getElementById('profileStatsBackBtn'),
+  deviationProgressFill: document.getElementById('deviationProgressFill'),
+  deviationProgressLabel: document.getElementById('deviationProgressLabel'),
+  deviationCountBanner: document.getElementById('deviationCountBanner'),
+  deviationDealerHand: document.getElementById('deviationDealerHand'),
+  deviationPlayerHand: document.getElementById('deviationPlayerHand'),
+  deviationHandTotal: document.getElementById('deviationHandTotal'),
+  deviationFeedback: document.getElementById('deviationFeedback'),
+  deviationActionGrid: document.getElementById('deviationActionGrid'),
+  deviationNextBtn: document.getElementById('deviationNextBtn'),
   modalOverlay: document.getElementById('modalOverlay'),
   modalTitle: document.getElementById('modalTitle'),
   modalMessage: document.getElementById('modalMessage'),
@@ -457,6 +514,8 @@ function applyDepthMode(mode) {
 
 function init() {
   state.settings = { ...state.settings };
+  state.profiles = loadProfilesFromStorage();
+  state.activeProfileId = loadActiveProfileIdFromStorage();
   state.shoe = createShoe(state.settings.decksInShoe);
   applyColorScheme(state.settings.colorScheme);
   applyDepthMode(state.settings.depthMode);
@@ -665,8 +724,7 @@ function bindStaticEvents() {
     button.addEventListener('click', () => {
       const screen = button.dataset.screen;
       if (screen === 'blackjack') {
-        renderScreen('blackjack');
-        showBetSelectionModal();
+        renderScreen('blackjack-entry');
         return;
       }
       if (screen) renderScreen(screen);
@@ -691,7 +749,10 @@ function bindStaticEvents() {
   document.getElementById('insuranceBtn').addEventListener('click', () => handleAction('I'));
   document.getElementById('presetBtn').addEventListener('click', choosePreset);
   document.getElementById('resetShoeBtn').addEventListener('click', confirmResetShoe);
-  document.getElementById('menuBtn').addEventListener('click', () => renderScreen('menu'));
+  document.getElementById('menuBtn').addEventListener('click', () => {
+    saveLiveStateIntoProfile();
+    renderScreen('menu');
+  });
   document.getElementById('enterGameBtn').addEventListener('click', () => {
     playScreenMusic('menu');
     unlockAudioOnUserGesture();
@@ -704,6 +765,8 @@ function bindStaticEvents() {
 
   bindCountingDrillEvents();
   bindGameDealingSpeedSlider();
+  bindProfileScreenEvents();
+  bindDeviationDrillEvents();
 }
 
 function renderScreen(name) {
@@ -715,8 +778,8 @@ function renderScreen(name) {
 
   if (name === 'intro') {
     playScreenMusic(null);
-  } else if (name === 'menu' || name === 'blackjack' || name === 'rules' || name === 'settings') {
-    if (name === 'rules' || name === 'settings') {
+  } else if (name === 'menu' || name === 'blackjack' || name === 'rules' || name === 'settings' || name === 'blackjack-entry' || name === 'profile-menu' || name === 'profile-stats') {
+    if (name === 'rules' || name === 'settings' || name === 'blackjack-entry' || name === 'profile-menu' || name === 'profile-stats') {
       ensureScreenMusicPlaying('menu');
     } else {
       ensureScreenMusicPlaying(name);
@@ -731,6 +794,35 @@ function renderScreen(name) {
 
   if (name === 'counting-running-drill' && previousScreen !== 'counting-running-drill') {
     ensureDrillStarted();
+  }
+
+  if (previousScreen === 'counting-deviation-drill' && name !== 'counting-deviation-drill') {
+    state.deviationDrillState.currentEntry = null;
+  }
+
+  if (name === 'counting-deviation-drill' && previousScreen !== 'counting-deviation-drill') {
+    startDeviationDrillSession();
+  }
+
+  if (name === 'blackjack-entry') {
+    renderBlackjackEntryScreen();
+  }
+
+  if (name === 'profile-menu') {
+    renderProfileMenuScreen();
+  }
+
+  if (name === 'profile-stats') {
+    renderProfileStatsScreen();
+  }
+
+  if (name === 'blackjack') {
+    if (elements.trueCountDeviationToggle) {
+      elements.trueCountDeviationToggle.checked = !!state.settings.trueCountDeviations;
+    }
+    if (elements.trueCountDeviationLabel) {
+      elements.trueCountDeviationLabel.textContent = state.settings.trueCountDeviations ? 'On' : 'Off';
+    }
   }
 
   if (current && current !== target) {
@@ -1044,6 +1136,7 @@ async function startRound() {
     state.insuranceAvailable = false;
     state.roundActive = false;
     state.isDealing = false;
+    recordHandResult({ handsPlayed: 1, handsWon: outcome === 'Blackjack' ? 1 : 0, moneyDelta: delta });
     updateHud();
     appendLog('Round complete. Net change: ' + formatSignedCurrency(delta));
     renderBetPanel();
@@ -1061,7 +1154,7 @@ async function startRound() {
   }
 
   if (state.settings.trainingMode) {
-    const recommendation = recommendBasicStrategy(playerHand, dealerHand[0]);
+    const recommendation = recommendBasicStrategy(playerHand, dealerHand[0], state.countingState.trueCount);
     appendLog(`Training hint: ${describeAction(recommendation)}.`);
   }
 
@@ -1070,6 +1163,10 @@ async function startRound() {
   if (dealerHand[0].rank === 'A' && state.settings.insuranceEnabled && !playerBlackjack) {
     state.insuranceAvailable = true;
     appendLog('Dealer shows an Ace. Insurance is available.');
+    if (state.settings.trueCountDeviations) {
+      const takeInsurance = shouldTakeInsuranceDeviation(state.countingState.trueCount);
+      appendLog(`Count tip: true count is ${state.countingState.trueCount.toFixed(1)} — ${takeInsurance ? 'taking insurance is favorable here.' : 'declining insurance is still correct here.'}`);
+    }
   }
 
   state.isDealing = false;
@@ -1173,6 +1270,7 @@ async function handleAction(action) {
       state.handBets[state.activeHandIndex] = 0;
       state.handStatuses[state.activeHandIndex] = true;
       appendLog(`Player surrendered. -$${surrenderLoss.toFixed(2)}`);
+      recordHandResult({ handsPlayed: 1, handsWon: 0, moneyDelta: -surrenderLoss });
       updateHud();
       renderBetPanel();
       await wait(ROUND_SUMMARY_DELAY_MS);
@@ -1254,13 +1352,17 @@ async function handleAction(action) {
     updateHud();
   };
 
-  if (state.settings.trainingMode) {
-    const recommendation = recommendBasicStrategy(hand, state.dealerHand[0]);
+  {
+    const recommendation = recommendBasicStrategy(hand, state.dealerHand[0], state.countingState.trueCount);
     const actual = describeAction(action);
-    if (action !== recommendation) {
+    recordStrategyDecision(action === recommendation);
+    if (state.settings.trainingMode && action !== recommendation) {
+      const deviationNote = state.settings.trueCountDeviations
+        ? ` (true count ${state.countingState.trueCount.toFixed(1)})`
+        : '';
       showModal(
         'Basic Strategy Hint',
-        `You chose to ${actual}. The correct move here is ${describeAction(recommendation)} against a ${state.dealerHand[0].rank}${state.dealerHand[0].suit} upcard.`,
+        `You chose to ${actual}. The correct move here is ${describeAction(recommendation)} against a ${state.dealerHand[0].rank}${state.dealerHand[0].suit} upcard${deviationNote}.`,
         ['Continue'],
         () => applyAction()
       );
@@ -1276,6 +1378,13 @@ async function resolveDealerTurn() {
     return;
   }
 
+  function dealerShouldHit(hand) {
+    const total = scoreHand(hand);
+    if (total < 17) return true;
+    if (total === 17 && state.settings.dealerHitsSoft17 && hasSoftTotal(hand)) return true;
+    return false;
+  }
+
   state.isDealing = true;
 
   if (state.dealerHand.length > 1 && state.dealerHand[1] && state.dealerHand[1]._counted === false) {
@@ -1288,7 +1397,7 @@ async function resolveDealerTurn() {
     renderHand(elements.dealerHand, state.dealerHand, false);
   }
 
-  while (scoreHand(state.dealerHand) < 17) {
+  while (dealerShouldHit(state.dealerHand)) {
     await wait(getDealDelayMs());
     state.dealerHand.push(drawCard());
     renderHand(elements.dealerHand, state.dealerHand, true);
@@ -1307,6 +1416,7 @@ async function settleRound() {
   const dealerHasBlackjack = state.dealerHand.length === 2 && dealerTotal === 21;
   let totalDelta = 0;
   let lastOutcome = 'Push';
+  let handsWon = 0;
 
   state.playerHands.forEach((hand, index) => {
     const bet = state.handBets[index];
@@ -1319,10 +1429,12 @@ async function settleRound() {
     } else if (dealerTotal > 21) {
       totalDelta += bet;
       lastOutcome = 'Win';
+      handsWon += 1;
       appendLog(`Hand ${index + 1}: dealer bust (+$${bet.toFixed(2)})`);
     } else if (playerTotal > dealerTotal) {
       totalDelta += bet;
       lastOutcome = 'Win';
+      handsWon += 1;
       appendLog(`Hand ${index + 1}: win (+$${bet.toFixed(2)})`);
     } else if (playerTotal < dealerTotal) {
       totalDelta -= bet;
@@ -1348,6 +1460,7 @@ async function settleRound() {
   state.insuranceBet = 0;
   state.insuranceAvailable = false;
   state.roundActive = false;
+  recordHandResult({ handsPlayed: state.playerHands.length, handsWon, moneyDelta: totalDelta });
 
   updateHud();
   appendLog(`Round complete. Net change: ${formatSignedCurrency(totalDelta)}`);
@@ -1485,22 +1598,87 @@ function buildStrategyCatalog() {
 const STRATEGY_CATALOG = buildStrategyCatalog();
 const STRATEGY_CATALOG_BY_ID = Object.fromEntries(STRATEGY_CATALOG.map((entry) => [entry.id, entry]));
 
-function recommendBasicStrategy(hand, dealerUpCard) {
+// The "Illustrious 18" — the 18 highest-value Hi-Lo true-count index plays for a
+// 6-deck, dealer-stands-soft-17 game, as published by Don Schlesinger in
+// "Blackjack Attack" and reproduced by BlackjackInfo.com's Illustrious 18 & Fab 4
+// reference chart (https://www.blackjackinfo.com/illustrious-18/). Each entry only
+// changes a hand's recommended move once the true count crosses its index.
+// direction "gte" = take the listed move once true count >= index (book was different).
+// direction "lt" = the book move is already the listed move; deviate to Hit once the
+// true count drops below the index (used for stiff hands vs. a weak dealer upcard).
+const ILLUSTRIOUS_18 = [
+  { kind: 'hard', total: 16, dealer: 10, index: 0, move: 'S', direction: 'gte' },
+  { kind: 'hard', total: 15, dealer: 10, index: 4, move: 'S', direction: 'gte' },
+  { kind: 'pair', rank: '10', dealer: 5, index: 5, move: 'P', direction: 'gte' },
+  { kind: 'pair', rank: '10', dealer: 6, index: 4, move: 'P', direction: 'gte' },
+  { kind: 'hard', total: 10, dealer: 10, index: 4, move: 'D', direction: 'gte' },
+  { kind: 'hard', total: 12, dealer: 3, index: 2, move: 'S', direction: 'gte' },
+  { kind: 'hard', total: 12, dealer: 2, index: 3, move: 'S', direction: 'gte' },
+  { kind: 'hard', total: 11, dealer: 11, index: 1, move: 'D', direction: 'gte' },
+  { kind: 'hard', total: 9, dealer: 2, index: 1, move: 'D', direction: 'gte' },
+  { kind: 'hard', total: 10, dealer: 11, index: 4, move: 'D', direction: 'gte' },
+  { kind: 'hard', total: 9, dealer: 7, index: 3, move: 'D', direction: 'gte' },
+  { kind: 'hard', total: 16, dealer: 9, index: 5, move: 'S', direction: 'gte' },
+  { kind: 'hard', total: 13, dealer: 2, index: -1, move: 'H', direction: 'lt' },
+  { kind: 'hard', total: 12, dealer: 4, index: 0, move: 'H', direction: 'lt' },
+  { kind: 'hard', total: 12, dealer: 5, index: -2, move: 'H', direction: 'lt' },
+  { kind: 'hard', total: 12, dealer: 6, index: -1, move: 'H', direction: 'lt' },
+  { kind: 'hard', total: 13, dealer: 3, index: -2, move: 'H', direction: 'lt' },
+  { kind: 'insurance', index: 3, direction: 'gte' }
+];
+
+function findTrueCountDeviation(hand, dealerUpCard, trueCount) {
+  const dealerValue = dealerUpCard.value === 11 ? 11 : dealerUpCard.value;
+  const isPair = canSplit(hand);
+  const total = scoreHand(hand);
+
+  const entry = ILLUSTRIOUS_18.find((candidate) => {
+    if (candidate.kind === 'insurance') return false;
+    if (candidate.dealer !== dealerValue) return false;
+    if (candidate.kind === 'pair') {
+      if (!isPair) return false;
+      const rank = ['J', 'Q', 'K'].includes(hand[0].rank) ? '10' : hand[0].rank;
+      return rank === candidate.rank;
+    }
+    if (isPair || hasSoftTotal(hand)) return false;
+    return candidate.total === total;
+  });
+
+  if (!entry) return null;
+
+  const meetsThreshold = entry.direction === 'gte' ? trueCount >= entry.index : trueCount < entry.index;
+  return meetsThreshold ? entry.move : null;
+}
+
+function shouldTakeInsuranceDeviation(trueCount) {
+  const entry = ILLUSTRIOUS_18.find((candidate) => candidate.kind === 'insurance');
+  if (!entry) return false;
+  return trueCount >= entry.index;
+}
+
+function recommendBasicStrategy(hand, dealerUpCard, trueCount) {
   if (!dealerUpCard) return 'H';
 
-  if (canSplit(hand)) {
-    return pairStrategy(hand, dealerUpCard);
-  }
+  const baseMove = (() => {
+    if (canSplit(hand)) {
+      return pairStrategy(hand, dealerUpCard);
+    }
 
-  const total = scoreHand(hand);
-  if (hasSoftTotal(hand)) {
-    return softStrategy(total, dealerUpCard.value);
-  }
+    const total = scoreHand(hand);
+    if (hasSoftTotal(hand)) {
+      return softStrategy(total, dealerUpCard.value);
+    }
 
-  if (hand.length === 2 && total === 16 && dealerUpCard.value >= 9 && dealerUpCard.value <= 11) return 'R';
-  if (hand.length === 2 && total === 15 && dealerUpCard.value === 10) return 'R';
+    if (hand.length === 2 && total === 16 && dealerUpCard.value >= 9 && dealerUpCard.value <= 11) return 'R';
+    if (hand.length === 2 && total === 15 && dealerUpCard.value === 10) return 'R';
 
-  return hardStrategy(total, dealerUpCard.value);
+    return hardStrategy(total, dealerUpCard.value);
+  })();
+
+  if (typeof trueCount !== 'number' || !state.settings.trueCountDeviations) return baseMove;
+
+  const deviation = findTrueCountDeviation(hand, dealerUpCard, trueCount);
+  return deviation || baseMove;
 }
 
 function pairStrategy(hand, dealerUpCard) {
@@ -1548,10 +1726,10 @@ function choosePreset() {
     }
 
     if (choice === 0) {
-      state.settings = { ...state.settings, showRunningCount: true, showDecksRemaining: true, showTrueCount: true, surrenderEnabled: true, insuranceEnabled: true, trainingMode: true, showHandTotals: true, decksInShoe: 6 };
+      state.settings = { ...state.settings, showRunningCount: true, showDecksRemaining: true, showTrueCount: true, surrenderEnabled: true, insuranceEnabled: true, trainingMode: true, showHandTotals: true, decksInShoe: 6, dealerHitsSoft17: true };
       state.presetName = 'Training';
     } else if (choice === 1) {
-      state.settings = { ...state.settings, showRunningCount: false, showDecksRemaining: true, showTrueCount: false, surrenderEnabled: true, insuranceEnabled: true, trainingMode: false, showHandTotals: false, decksInShoe: 6 };
+      state.settings = { ...state.settings, showRunningCount: false, showDecksRemaining: true, showTrueCount: false, surrenderEnabled: true, insuranceEnabled: true, trainingMode: false, showHandTotals: false, decksInShoe: 6, dealerHitsSoft17: true };
       state.presetName = 'True Game';
     } else if (choice === 2) {
       askCustomPreset();
@@ -1562,6 +1740,7 @@ function choosePreset() {
     state.countingState.runningCount = 0;
     state.countingState.decksRemaining = state.shoe.length / 52;
     state.countingState.trueCount = 0;
+    saveLiveStateIntoProfile();
     renderScreen('blackjack');
     renderBetPanel();
     updateHud();
@@ -1596,7 +1775,8 @@ function askCustomPreset() {
     { label: 'Enable surrender', key: 'surrenderEnabled', value: state.settings.surrenderEnabled },
     { label: 'Enable insurance', key: 'insuranceEnabled', value: state.settings.insuranceEnabled },
     { label: 'mistake correction', key: 'trainingMode', value: state.settings.trainingMode },
-    { label: 'show hand value', key: 'showHandTotals', value: state.settings.showHandTotals }
+    { label: 'show hand value', key: 'showHandTotals', value: state.settings.showHandTotals },
+    { label: 'Dealer hits on soft 17', key: 'dealerHitsSoft17', value: state.settings.dealerHitsSoft17 }
   ];
 
   const settingState = {};
@@ -1649,6 +1829,7 @@ function askCustomPreset() {
     const deckCount = Number(deckSelect.value || 6);
 
     state.settings = {
+      ...state.settings,
       showRunningCount: !!settingState.showRunningCount,
       showDecksRemaining: !!settingState.showDecksRemaining,
       showTrueCount: !!settingState.showTrueCount,
@@ -1656,6 +1837,7 @@ function askCustomPreset() {
       insuranceEnabled: !!settingState.insuranceEnabled,
       trainingMode: !!settingState.trainingMode,
       showHandTotals: !!settingState.showHandTotals,
+      dealerHitsSoft17: !!settingState.dealerHitsSoft17,
       decksInShoe: deckCount
     };
 
@@ -1664,6 +1846,7 @@ function askCustomPreset() {
     state.countingState.runningCount = 0;
     state.countingState.decksRemaining = state.shoe.length / 52;
     state.countingState.trueCount = 0;
+    saveLiveStateIntoProfile();
     renderScreen('blackjack');
     renderBetPanel();
     updateHud();
@@ -2837,7 +3020,7 @@ function renderRulesScreen() {
     <section class="info-block">
       <h2>How blackjack is played</h2>
       <p>Blackjack is a showdown between the player and the dealer. The goal is to end with a total closer to 21 than the dealer without going over. Number cards count as their face value, face cards count as 10, and aces count as 1 or 11 depending on what helps the hand most.</p>
-      <p>The dealer follows a fixed pattern: they hit until they reach 17 or higher, and the player may choose to hit, stand, double, split, surrender, or buy insurance when the dealer shows an Ace.</p>
+      <p>The dealer follows a fixed pattern: they hit until they reach 17 or higher. If the "Dealer hits on soft 17" setting is on for your current preset, the dealer also hits a soft 17 (for example, Ace + 6) instead of standing on it — this is a common real-casino rule (H17) that slightly raises the house edge. The Training and True Game presets have this rule turned on by default; it can be turned off in a Custom preset. The player may choose to hit, stand, double, split, surrender, or buy insurance when the dealer shows an Ace.</p>
     </section>
 
     <section class="info-block">
@@ -2879,6 +3062,36 @@ function renderRulesScreen() {
       <p><strong>True count:</strong> The running count only tells half the story — a running count of +6 means something very different in a fresh 6-deck shoe than in a shoe with half a deck left. Divide the running count by the number of decks remaining to get the true count: true count = running count ÷ decks remaining. A higher true count means more high cards are left, which favors the player.</p>
       <p><strong>Walkthrough example:</strong> Shoe starts at a running count of 0. A 4 is dealt (+1, running count 1), then a King (-1, running count 0), then a 7 (0, running count 0), then a 2 (+1, running count 1), then an Ace (-1, running count 0). After 5 cards with roughly 5.9 decks remaining, the true count is about 0 ÷ 5.9 ≈ 0.00 — a neutral shoe. As more low cards come out relative to high cards, the running count (and true count) climbs, signaling a shoe that favors the player.</p>
       <p class="strategy-note"><strong>Practice tip:</strong> Use the Running Count Drill in the Card Counting tab to build speed — hands are dealt automatically and you're quizzed on the running count after each one.</p>
+    </section>
+
+    <section class="info-block">
+      <h2>Going further: the Illustrious 18</h2>
+      <p>Basic strategy above assumes a neutral shoe. Once you're tracking a true count, a handful of hands become profitable to play differently than basic strategy says — these are called "index plays" or "deviations." The table below is the Illustrious 18, the 18 highest-value Hi-Lo deviations, as published by Don Schlesinger in <em>Blackjack Attack</em> and reproduced by <a href="https://www.blackjackinfo.com/illustrious-18/" target="_blank" rel="noopener noreferrer">BlackjackInfo.com's Illustrious 18 &amp; Fab 4 reference chart</a>. Every deviation shown here is also used by this app's own trainer, so it always matches what you're quizzed on.</p>
+      <table>
+        <thead>
+          <tr><th>Hand</th><th>Vs. dealer</th><th>Book play</th><th>Deviation</th><th>True count</th></tr>
+        </thead>
+        <tbody>
+          ${ILLUSTRIOUS_18.filter((entry) => entry.kind !== 'insurance').map((entry) => {
+            const dealerLabel = entry.dealer === 11 ? 'A' : String(entry.dealer);
+            let handLabel;
+            let bookMove;
+            if (entry.kind === 'pair') {
+              handLabel = `${entry.rank}${entry.rank}`;
+              bookMove = basicStrategyDatabase.pairs[entry.rank][entry.dealer];
+            } else {
+              handLabel = `Hard ${entry.total}`;
+              bookMove = basicStrategyDatabase.hard[entry.total][entry.dealer];
+            }
+            const thresholdLabel = entry.direction === 'gte' ? `≥ ${entry.index >= 0 ? '+' : ''}${entry.index}` : `< ${entry.index >= 0 ? '+' : ''}${entry.index}`;
+            return `<tr><td>${handLabel}</td><td>${dealerLabel}</td><td>${describeAction(bookMove)}</td><td>${describeAction(entry.move)}</td><td>${thresholdLabel}</td></tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+      <p><strong>Insurance:</strong> Basic strategy says never take insurance. The deviation: take insurance whenever the true count is +3 or higher — at that point there are enough extra 10-value cards left in the shoe to make the side bet profitable.</p>
+      <p class="strategy-note"><strong>Toggle it on at the table:</strong> Turn on "True count modifies basic strategy" on the blackjack table to have the hint system recommend these deviations automatically once the true count crosses each index, instead of always recommending the neutral-shoe basic strategy play.</p>
+      <p class="strategy-note"><strong>Known limitation:</strong> This chart intentionally omits the "Fab 4" surrender deviations from the BlackjackInfo.com source. Those assume a baseline where 15 vs. Ace, 16 vs. 9, 16 vs. 10, and 16 vs. Ace are <em>not</em> book surrenders — but this app's own basic strategy already treats those hands as surrenders by default, so the Fab 4 framing doesn't apply here.</p>
+      <p class="strategy-note"><strong>Practice tip:</strong> Use the Deviation Drill in the Card Counting tab to train these plays — you'll be shown a hand and a true count and asked to pick the right move.</p>
     </section>
   `;
 }
@@ -3339,6 +3552,796 @@ function resetGame() {
   state.countingState.decksRemaining = state.shoe.length / 52;
   state.countingState.trueCount = 0;
   updateHud();
+}
+
+/* ------------------------------------------------------------------------ */
+/* Profile system                                                            */
+/* ------------------------------------------------------------------------ */
+
+function loadProfilesFromStorage() {
+  try {
+    const raw = localStorage.getItem(PROFILES_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function persistProfiles() {
+  try {
+    localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(state.profiles));
+  } catch (error) {
+    /* ignore storage failures */
+  }
+}
+
+function loadActiveProfileIdFromStorage() {
+  try {
+    return localStorage.getItem(ACTIVE_PROFILE_STORAGE_KEY) || null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function persistActiveProfileId() {
+  try {
+    if (state.activeProfileId) {
+      localStorage.setItem(ACTIVE_PROFILE_STORAGE_KEY, state.activeProfileId);
+    } else {
+      localStorage.removeItem(ACTIVE_PROFILE_STORAGE_KEY);
+    }
+  } catch (error) {
+    /* ignore storage failures */
+  }
+}
+
+function generateProfileId() {
+  return `profile_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function getActiveProfile() {
+  return state.profiles.find((profile) => profile.id === state.activeProfileId) || null;
+}
+
+function findProfileByName(name) {
+  const normalized = name.trim().toLowerCase();
+  return state.profiles.find((profile) => profile.name.trim().toLowerCase() === normalized) || null;
+}
+
+function presetSettingsFor(presetName) {
+  if (presetName === 'Training') {
+    return { showRunningCount: true, showDecksRemaining: true, showTrueCount: true, surrenderEnabled: true, insuranceEnabled: true, trainingMode: true, showHandTotals: true, decksInShoe: 6, dealerHitsSoft17: true, trueCountDeviations: false };
+  }
+  if (presetName === 'True Game') {
+    return { showRunningCount: false, showDecksRemaining: true, showTrueCount: false, surrenderEnabled: true, insuranceEnabled: true, trainingMode: false, showHandTotals: false, decksInShoe: 6, dealerHitsSoft17: true, trueCountDeviations: false };
+  }
+  return { showRunningCount: true, showDecksRemaining: true, showTrueCount: true, surrenderEnabled: true, insuranceEnabled: true, trainingMode: true, showHandTotals: true, decksInShoe: 6, dealerHitsSoft17: true, trueCountDeviations: false };
+}
+
+function createProfile(name, presetName, customSettings) {
+  const profile = {
+    id: generateProfileId(),
+    name: name.trim(),
+    presetName,
+    settings: presetName === 'Custom' && customSettings
+      ? { ...presetSettingsFor('Custom'), ...customSettings }
+      : presetSettingsFor(presetName),
+    balance: 1000,
+    active: true,
+    stats: {
+      handsPlayed: 0,
+      handsWon: 0,
+      moneyWon: 0,
+      moneyLost: 0,
+      strategyCorrect: 0,
+      strategyTotal: 0
+    }
+  };
+  state.profiles.push(profile);
+  persistProfiles();
+  return profile;
+}
+
+function selectProfile(profileId) {
+  state.activeProfileId = profileId;
+  persistActiveProfileId();
+  loadProfileIntoLiveState(getActiveProfile());
+}
+
+function loadProfileIntoLiveState(profile) {
+  if (!profile) return;
+  state.balance = profile.balance;
+  state.settings = { ...state.settings, ...profile.settings };
+  state.presetName = profile.presetName;
+  state.currentBet = 0;
+  state.dealerHand = [];
+  state.playerHands = [];
+  state.handBets = [];
+  state.handStatuses = [];
+  state.activeHandIndex = 0;
+  state.insuranceBet = 0;
+  state.insuranceAvailable = false;
+  state.roundActive = false;
+  state.awaitingBet = false;
+  state.shoe = createShoe(state.settings.decksInShoe);
+  state.countingState.runningCount = 0;
+  state.countingState.decksRemaining = state.shoe.length / 52;
+  state.countingState.trueCount = 0;
+}
+
+function saveLiveStateIntoProfile() {
+  const profile = getActiveProfile();
+  if (!profile) return;
+  profile.balance = state.balance;
+  profile.settings = { ...profile.settings, ...state.settings };
+  profile.presetName = state.presetName;
+  persistProfiles();
+}
+
+function deleteProfile(profileId) {
+  state.profiles = state.profiles.filter((profile) => profile.id !== profileId);
+  if (state.activeProfileId === profileId) {
+    state.activeProfileId = null;
+    persistActiveProfileId();
+  }
+  persistProfiles();
+}
+
+function recordHandResult({ handsPlayed = 0, handsWon = 0, moneyDelta = 0 }) {
+  const profile = getActiveProfile();
+  if (!profile) return;
+  profile.balance = state.balance;
+  profile.stats.handsPlayed += handsPlayed;
+  profile.stats.handsWon += handsWon;
+  if (moneyDelta > 0) profile.stats.moneyWon += moneyDelta;
+  else if (moneyDelta < 0) profile.stats.moneyLost += Math.abs(moneyDelta);
+  persistProfiles();
+}
+
+function recordStrategyDecision(isCorrect) {
+  const profile = getActiveProfile();
+  if (!profile) return;
+  profile.stats.strategyTotal += 1;
+  if (isCorrect) profile.stats.strategyCorrect += 1;
+  persistProfiles();
+}
+
+function leaveBlackjackTable() {
+  saveLiveStateIntoProfile();
+  if (state.activeProfileId) {
+    renderScreen('profile-menu');
+  } else {
+    renderScreen('menu');
+  }
+}
+
+function handleInsufficientFunds() {
+  saveLiveStateIntoProfile();
+  const profile = getActiveProfile();
+  playOutcomeSound(false);
+
+  if (!profile) {
+    showModal('Out of Funds', 'You are out of funds. Head back to the main menu to create or select a profile.', ['OK'], () => {
+      renderScreen('menu');
+    });
+    return;
+  }
+
+  elements.modalTitle.textContent = 'Insufficient Funds';
+  elements.modalMessage.textContent = `"${profile.name}" only has ${formatCurrency(profile.balance)} left, which isn't enough to place even the smallest bet (${formatCurrency(MIN_CHIP_VALUE)}). You can delete this profile, or keep it around as an inactive profile so you can still review its statistics.`;
+  elements.modalActions.innerHTML = '';
+
+  const deleteButton = document.createElement('button');
+  deleteButton.textContent = 'Delete Profile';
+  deleteButton.addEventListener('click', () => {
+    hideModal();
+    deleteProfile(profile.id);
+    renderScreen('blackjack-entry');
+  });
+
+  const inactiveButton = document.createElement('button');
+  inactiveButton.textContent = 'Keep as Inactive';
+  inactiveButton.addEventListener('click', () => {
+    hideModal();
+    profile.active = false;
+    persistProfiles();
+    renderScreen('profile-menu');
+  });
+
+  elements.modalActions.appendChild(deleteButton);
+  elements.modalActions.appendChild(inactiveButton);
+  showModalOverlay();
+}
+
+function renderBlackjackEntryScreen() {
+  // Nothing dynamic to compute today, but kept as a hook so future profile
+  // summaries (e.g. "Continue as Alex") can be layered in without touching
+  // renderScreen()'s dispatch logic.
+}
+
+function renderProfileMenuScreen() {
+  const profile = getActiveProfile();
+  if (!profile) {
+    renderScreen('blackjack-entry');
+    return;
+  }
+
+  if (elements.profileMenuName) elements.profileMenuName.textContent = profile.name;
+  if (elements.profileMenuSummary) {
+    elements.profileMenuSummary.textContent = `Balance: ${formatCurrency(profile.balance)} • Preset: ${profile.presetName}`;
+  }
+  if (elements.profileMenuInactiveNote) {
+    elements.profileMenuInactiveNote.classList.toggle('hidden', profile.active !== false);
+  }
+  if (elements.profileMenuPlayBtn) {
+    elements.profileMenuPlayBtn.disabled = profile.active === false;
+  }
+}
+
+function renderProfileStatsScreen() {
+  if (!elements.profileStatsContent) return;
+  const profile = getActiveProfile();
+
+  if (!profile) {
+    elements.profileStatsContent.innerHTML = '<p>No profile selected.</p>';
+    return;
+  }
+
+  if (elements.profileStatsName) elements.profileStatsName.textContent = `${profile.name}'s Statistics`;
+
+  const stats = profile.stats;
+  const winPct = stats.handsPlayed > 0 ? (stats.handsWon / stats.handsPlayed) * 100 : 0;
+  const netMoney = stats.moneyWon - stats.moneyLost;
+  const moneyGainPct = ((profile.balance - 1000) / 1000) * 100;
+  const strategyPct = stats.strategyTotal > 0 ? (stats.strategyCorrect / stats.strategyTotal) * 100 : 0;
+
+  const rows = [
+    ['Hands played', String(stats.handsPlayed)],
+    ['Hands won', String(stats.handsWon)],
+    ['Win percentage', `${winPct.toFixed(1)}%`],
+    ['Money won', formatCurrency(stats.moneyWon)],
+    ['Money lost', formatCurrency(stats.moneyLost)],
+    ['Net money', formatSignedCurrency(netMoney)],
+    ['Money gain vs. starting $1,000', `${moneyGainPct >= 0 ? '+' : ''}${moneyGainPct.toFixed(1)}%`],
+    ['Basic strategy correct rate', stats.strategyTotal > 0 ? `${strategyPct.toFixed(1)}% (${stats.strategyCorrect}/${stats.strategyTotal})` : 'No decisions recorded yet']
+  ];
+
+  elements.profileStatsContent.innerHTML = '';
+  const table = document.createElement('div');
+  table.className = 'profile-stats-table';
+
+  rows.forEach(([label, value]) => {
+    const row = document.createElement('div');
+    row.className = 'profile-stats-row';
+
+    const labelEl = document.createElement('span');
+    labelEl.className = 'profile-stats-label';
+    labelEl.textContent = label;
+
+    const valueEl = document.createElement('span');
+    valueEl.className = 'profile-stats-value';
+    valueEl.textContent = value;
+
+    row.appendChild(labelEl);
+    row.appendChild(valueEl);
+    table.appendChild(row);
+  });
+
+  elements.profileStatsContent.appendChild(table);
+}
+
+function describePreset(presetName, settings) {
+  if (presetName === 'Training') {
+    return 'Shows the running count, true count, and hand totals, with mistake-correction hints turned on.';
+  }
+  if (presetName === 'True Game') {
+    return 'Hides count and hand-total information for a realistic casino-style game.';
+  }
+  const bits = [
+    settings.showRunningCount ? 'running count shown' : 'running count hidden',
+    settings.showTrueCount ? 'true count shown' : 'true count hidden',
+    settings.trainingMode ? 'mistake correction on' : 'mistake correction off',
+    settings.surrenderEnabled ? 'surrender enabled' : 'surrender disabled',
+    settings.insuranceEnabled ? 'insurance enabled' : 'insurance disabled',
+    `${settings.decksInShoe || 6} decks in the shoe`,
+    settings.dealerHitsSoft17 ? 'dealer hits soft 17' : 'dealer stands on soft 17'
+  ];
+  return `Custom preset: ${bits.join(', ')}.`;
+}
+
+function openProfilePickerModal() {
+  elements.modalTitle.textContent = 'Profiles';
+  elements.modalMessage.textContent = state.profiles.length
+    ? 'Select a profile to continue, view its info, or create a new one.'
+    : "You don't have any profiles yet. Create one to start playing.";
+  elements.modalActions.innerHTML = '';
+
+  const list = document.createElement('div');
+  list.className = 'profile-list';
+
+  state.profiles.forEach((profile) => {
+    const row = document.createElement('div');
+    row.className = `profile-row${profile.active === false ? ' profile-row-inactive' : ''}`;
+
+    const nameBtn = document.createElement('button');
+    nameBtn.type = 'button';
+    nameBtn.className = 'profile-row-name';
+    nameBtn.textContent = profile.active === false ? `${profile.name} (inactive)` : profile.name;
+    nameBtn.addEventListener('click', () => {
+      hideModal();
+      selectProfile(profile.id);
+      renderScreen('profile-menu');
+    });
+
+    const infoBtn = document.createElement('button');
+    infoBtn.type = 'button';
+    infoBtn.className = 'profile-icon-btn profile-info-btn';
+    infoBtn.setAttribute('aria-label', `View info for ${profile.name}`);
+    infoBtn.textContent = 'i';
+    infoBtn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      openProfileInfoModal(profile);
+    });
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'profile-icon-btn profile-delete-btn';
+    deleteBtn.setAttribute('aria-label', `Delete ${profile.name}`);
+    deleteBtn.textContent = '✕';
+    deleteBtn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      confirmDeleteProfile(profile);
+    });
+
+    row.appendChild(nameBtn);
+    row.appendChild(infoBtn);
+    row.appendChild(deleteBtn);
+    list.appendChild(row);
+  });
+
+  const createButton = document.createElement('button');
+  createButton.type = 'button';
+  createButton.className = 'profile-create-btn';
+  createButton.textContent = 'Create New Profile';
+  createButton.addEventListener('click', () => {
+    openCreateProfileModal();
+  });
+
+  elements.modalActions.appendChild(list);
+  elements.modalActions.appendChild(createButton);
+  showModalOverlay();
+}
+
+function openProfileInfoModal(profile) {
+  const presetDescription = describePreset(profile.presetName, profile.settings);
+  const inactiveNote = profile.active === false ? '\n\nThis profile is currently inactive (out of funds).' : '';
+  showModal(
+    profile.name,
+    `Balance: ${formatCurrency(profile.balance)}\nPreset: ${profile.presetName}\n${presetDescription}${inactiveNote}`,
+    ['Back'],
+    () => openProfilePickerModal()
+  );
+}
+
+function confirmDeleteProfile(profile) {
+  showModal(
+    'Delete Profile',
+    `Are you sure you want to permanently delete "${profile.name}"? This cannot be undone.`,
+    ['Delete', 'Cancel'],
+    (choice) => {
+      if (choice !== 0) {
+        openProfilePickerModal();
+        return;
+      }
+      deleteProfile(profile.id);
+      if (!state.activeProfileId) {
+        renderScreen('blackjack-entry');
+      } else {
+        openProfilePickerModal();
+      }
+    }
+  );
+}
+
+function openCreateProfileModal() {
+  elements.modalTitle.textContent = 'Create New Profile';
+  elements.modalMessage.textContent = 'Give your profile a unique name and choose a preset. New profiles start with a $1,000 bankroll.';
+  elements.modalActions.innerHTML = '';
+
+  const form = document.createElement('div');
+  form.className = 'profile-create-form';
+
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.placeholder = 'Profile name';
+  nameInput.className = 'profile-name-input';
+  nameInput.maxLength = 24;
+
+  const presetRow = document.createElement('div');
+  presetRow.className = 'custom-settings-list';
+
+  let selectedPreset = 'Training';
+
+  ['Training', 'True Game', 'Custom'].forEach((name) => {
+    const row = document.createElement('label');
+    row.className = 'custom-setting-item';
+
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = 'newProfilePreset';
+    radio.checked = name === selectedPreset;
+    radio.addEventListener('change', () => {
+      selectedPreset = name;
+    });
+
+    const text = document.createElement('span');
+    text.textContent = name;
+
+    row.appendChild(radio);
+    row.appendChild(text);
+    presetRow.appendChild(row);
+  });
+
+  const errorText = document.createElement('p');
+  errorText.className = 'profile-form-error hidden';
+
+  const createButton = document.createElement('button');
+  createButton.textContent = 'Create Profile';
+  createButton.addEventListener('click', () => {
+    const name = nameInput.value.trim();
+    if (!name) {
+      errorText.textContent = 'Please enter a profile name.';
+      errorText.classList.remove('hidden');
+      return;
+    }
+    if (findProfileByName(name)) {
+      errorText.textContent = 'A profile with that name already exists.';
+      errorText.classList.remove('hidden');
+      return;
+    }
+
+    if (selectedPreset === 'Custom') {
+      hideModal();
+      askCustomPresetForNewProfile(name);
+      return;
+    }
+
+    hideModal();
+    const profile = createProfile(name, selectedPreset);
+    selectProfile(profile.id);
+    renderScreen('profile-menu');
+  });
+
+  const cancelButton = document.createElement('button');
+  cancelButton.textContent = 'Cancel';
+  cancelButton.addEventListener('click', () => {
+    hideModal();
+    renderScreen('blackjack-entry');
+  });
+
+  form.appendChild(nameInput);
+  form.appendChild(presetRow);
+  form.appendChild(errorText);
+
+  elements.modalActions.appendChild(form);
+  elements.modalActions.appendChild(createButton);
+  elements.modalActions.appendChild(cancelButton);
+  showModalOverlay();
+}
+
+function askCustomPresetForNewProfile(name) {
+  elements.modalTitle.textContent = 'Custom Settings';
+  elements.modalMessage.textContent = `Choose the options for "${name}"'s custom preset:`;
+  elements.modalActions.innerHTML = '';
+
+  const list = document.createElement('div');
+  list.className = 'custom-settings-list';
+
+  const defaults = presetSettingsFor('Custom');
+  const toggles = [
+    { label: 'Show running count', key: 'showRunningCount', value: defaults.showRunningCount },
+    { label: 'Show decks remaining', key: 'showDecksRemaining', value: defaults.showDecksRemaining },
+    { label: 'Show true count', key: 'showTrueCount', value: defaults.showTrueCount },
+    { label: 'Enable surrender', key: 'surrenderEnabled', value: defaults.surrenderEnabled },
+    { label: 'Enable insurance', key: 'insuranceEnabled', value: defaults.insuranceEnabled },
+    { label: 'mistake correction', key: 'trainingMode', value: defaults.trainingMode },
+    { label: 'show hand value', key: 'showHandTotals', value: defaults.showHandTotals },
+    { label: 'Dealer hits on soft 17', key: 'dealerHitsSoft17', value: defaults.dealerHitsSoft17 }
+  ];
+
+  const settingState = {};
+
+  toggles.forEach(({ label, key, value }) => {
+    const row = document.createElement('label');
+    row.className = 'custom-setting-item';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = value;
+    settingState[key] = value;
+    checkbox.addEventListener('change', () => {
+      settingState[key] = checkbox.checked;
+    });
+
+    const text = document.createElement('span');
+    text.textContent = label;
+
+    row.appendChild(checkbox);
+    row.appendChild(text);
+    list.appendChild(row);
+  });
+
+  const deckRow = document.createElement('label');
+  deckRow.className = 'custom-setting-item deck-setting';
+
+  const deckLabel = document.createElement('span');
+  deckLabel.textContent = 'Decks in the shoe:';
+
+  const deckSelect = document.createElement('select');
+  ['2', '3', '4', '5', '6', '7', '8'].forEach((deckCount) => {
+    const option = document.createElement('option');
+    option.value = deckCount;
+    option.textContent = deckCount;
+    if (Number(deckCount) === defaults.decksInShoe) option.selected = true;
+    deckSelect.appendChild(option);
+  });
+
+  deckRow.appendChild(deckLabel);
+  deckRow.appendChild(deckSelect);
+  list.appendChild(deckRow);
+
+  const applyButton = document.createElement('button');
+  applyButton.textContent = 'Create Profile';
+  applyButton.addEventListener('click', () => {
+    hideModal();
+    const customSettings = {
+      showRunningCount: !!settingState.showRunningCount,
+      showDecksRemaining: !!settingState.showDecksRemaining,
+      showTrueCount: !!settingState.showTrueCount,
+      surrenderEnabled: !!settingState.surrenderEnabled,
+      insuranceEnabled: !!settingState.insuranceEnabled,
+      trainingMode: !!settingState.trainingMode,
+      showHandTotals: !!settingState.showHandTotals,
+      dealerHitsSoft17: !!settingState.dealerHitsSoft17,
+      decksInShoe: Number(deckSelect.value || 6)
+    };
+    const profile = createProfile(name, 'Custom', customSettings);
+    selectProfile(profile.id);
+    renderScreen('profile-menu');
+  });
+
+  elements.modalActions.appendChild(list);
+  elements.modalActions.appendChild(applyButton);
+  showModalOverlay();
+}
+
+function bindProfileScreenEvents() {
+  if (elements.entryPlayBtn) {
+    elements.entryPlayBtn.addEventListener('click', () => {
+      const profile = getActiveProfile();
+      if (!profile) {
+        openProfilePickerModal();
+        return;
+      }
+      if (profile.active === false) {
+        showModal('Profile Inactive', `"${profile.name}" is out of funds and marked inactive. Choose another profile or create a new one to keep playing.`, ['OK'], () => {
+          openProfilePickerModal();
+        });
+        return;
+      }
+      loadProfileIntoLiveState(profile);
+      renderScreen('blackjack');
+    });
+  }
+
+  if (elements.entryUseProfileBtn) {
+    elements.entryUseProfileBtn.addEventListener('click', () => openProfilePickerModal());
+  }
+
+  if (elements.entryCreateProfileBtn) {
+    elements.entryCreateProfileBtn.addEventListener('click', () => openCreateProfileModal());
+  }
+
+  if (elements.profileMenuPlayBtn) {
+    elements.profileMenuPlayBtn.addEventListener('click', () => {
+      const profile = getActiveProfile();
+      if (!profile || profile.active === false) return;
+      loadProfileIntoLiveState(profile);
+      renderScreen('blackjack');
+    });
+  }
+
+  if (elements.profileMenuStatsBtn) {
+    elements.profileMenuStatsBtn.addEventListener('click', () => renderScreen('profile-stats'));
+  }
+
+  if (elements.profileMenuSwitchBtn) {
+    elements.profileMenuSwitchBtn.addEventListener('click', () => openProfilePickerModal());
+  }
+
+  if (elements.profileStatsBackBtn) {
+    elements.profileStatsBackBtn.addEventListener('click', () => renderScreen('profile-menu'));
+  }
+
+  if (elements.trueCountDeviationToggle) {
+    elements.trueCountDeviationToggle.addEventListener('change', () => {
+      state.settings.trueCountDeviations = elements.trueCountDeviationToggle.checked;
+      if (elements.trueCountDeviationLabel) {
+        elements.trueCountDeviationLabel.textContent = state.settings.trueCountDeviations ? 'On' : 'Off';
+      }
+      saveLiveStateIntoProfile();
+      appendLog(`True count deviations ${state.settings.trueCountDeviations ? 'enabled' : 'disabled'}.`);
+    });
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+/* Deviation Drill minigame (Illustrious 18 practice)                       */
+/* ------------------------------------------------------------------------ */
+
+const DEVIATION_HAND_ENTRIES = ILLUSTRIOUS_18.filter((entry) => entry.kind !== 'insurance');
+
+function buildDeviationDrillScenarioList() {
+  const scenarios = [];
+  DEVIATION_HAND_ENTRIES.forEach((entry, entryIndex) => {
+    scenarios.push({ entryIndex, applyDeviation: true });
+    scenarios.push({ entryIndex, applyDeviation: false });
+  });
+  return scenarios;
+}
+
+function trueCountForDrillScenario(entry, applyDeviation) {
+  const wantBelowIndex = entry.direction === 'gte' ? !applyDeviation : applyDeviation;
+  return wantBelowIndex ? entry.index - 2 : entry.index + 2;
+}
+
+function correctMoveForDrillHand(hand, dealerCard, trueCount) {
+  const baseMove = canSplit(hand)
+    ? pairStrategy(hand, dealerCard)
+    : hasSoftTotal(hand)
+      ? softStrategy(scoreHand(hand), dealerCard.value)
+      : hardStrategy(scoreHand(hand), dealerCard.value);
+  const deviation = findTrueCountDeviation(hand, dealerCard, trueCount);
+  return deviation || baseMove;
+}
+
+function startDeviationDrillSession() {
+  state.deviationDrillState.pool = buildDeviationDrillScenarioList();
+  shuffle(state.deviationDrillState.pool);
+  state.deviationDrillState.sessionTotal = state.deviationDrillState.pool.length;
+  state.deviationDrillState.currentEntry = null;
+  if (elements.deviationNextBtn) elements.deviationNextBtn.classList.add('hidden');
+  drawNextDeviationScenario();
+}
+
+function drawNextDeviationScenario() {
+  if (elements.deviationNextBtn) elements.deviationNextBtn.classList.add('hidden');
+  const scenario = state.deviationDrillState.pool.shift();
+
+  if (!scenario) {
+    renderDeviationDrillCompletion();
+    return;
+  }
+
+  const entry = DEVIATION_HAND_ENTRIES[scenario.entryIndex];
+  const { dealerCard, playerCards } = buildComboHand(entry);
+  const trueCount = trueCountForDrillScenario(entry, scenario.applyDeviation);
+
+  state.deviationDrillState.currentEntry = entry;
+  state.deviationDrillState.currentHand = playerCards;
+  state.deviationDrillState.currentDealerCard = dealerCard;
+  state.deviationDrillState.currentTrueCount = trueCount;
+  state.deviationDrillState.answered = false;
+
+  renderDeviationScenario();
+}
+
+function renderDeviationScenario() {
+  if (!elements.deviationPlayerHand) return;
+  renderHand(elements.deviationDealerHand, [state.deviationDrillState.currentDealerCard], false);
+  renderHand(elements.deviationPlayerHand, state.deviationDrillState.currentHand, false);
+  if (elements.deviationHandTotal) elements.deviationHandTotal.textContent = scoreHand(state.deviationDrillState.currentHand);
+  if (elements.deviationCountBanner) {
+    elements.deviationCountBanner.textContent = `True count: ${state.deviationDrillState.currentTrueCount}`;
+  }
+  if (elements.deviationFeedback) {
+    elements.deviationFeedback.textContent = 'Choose the best move for this hand at this true count.';
+    elements.deviationFeedback.className = 'strategy-feedback';
+  }
+  renderDeviationActionButtons();
+  updateDeviationDrillProgress();
+}
+
+function renderDeviationActionButtons() {
+  if (!elements.deviationActionGrid) return;
+  const hand = state.deviationDrillState.currentHand;
+  const buttons = [
+    { code: 'H', label: 'Hit', cls: 'hit' },
+    { code: 'S', label: 'Stand', cls: 'stand' },
+    { code: 'D', label: 'Double', cls: 'double' }
+  ];
+  if (canSplit(hand)) buttons.push({ code: 'P', label: 'Split', cls: 'split' });
+
+  elements.deviationActionGrid.innerHTML = buttons
+    .map((button) => `<button type="button" class="action-button ${button.cls}" data-deviation-action="${button.code}">${button.label}</button>`)
+    .join('');
+
+  elements.deviationActionGrid.querySelectorAll('[data-deviation-action]').forEach((button) => {
+    button.addEventListener('click', () => handleDeviationAnswer(button.dataset.deviationAction));
+  });
+}
+
+function handleDeviationAnswer(chosenCode) {
+  if (state.deviationDrillState.answered) return;
+  state.deviationDrillState.answered = true;
+
+  const entry = state.deviationDrillState.currentEntry;
+  const hand = state.deviationDrillState.currentHand;
+  const dealerCard = state.deviationDrillState.currentDealerCard;
+  const trueCount = state.deviationDrillState.currentTrueCount;
+
+  const correctCode = correctMoveForDrillHand(hand, dealerCard, trueCount);
+  const baseMove = canSplit(hand)
+    ? pairStrategy(hand, dealerCard)
+    : hardStrategy(scoreHand(hand), dealerCard.value);
+  const isDeviationInPlay = correctCode !== baseMove;
+  const isCorrect = chosenCode === correctCode;
+
+  elements.deviationActionGrid.querySelectorAll('[data-deviation-action]').forEach((button) => {
+    button.disabled = true;
+    const code = button.dataset.deviationAction;
+    if (code === correctCode) button.classList.add('correct-answer');
+    if (code === chosenCode && code !== correctCode) button.classList.add('wrong-answer');
+  });
+
+  if (elements.deviationFeedback) {
+    if (isCorrect) {
+      elements.deviationFeedback.textContent = isDeviationInPlay
+        ? `Correct! At a true count of ${trueCount}, this crosses the Illustrious 18 index of ${entry.index} — the count overrides basic strategy here.`
+        : `Correct! At a true count of ${trueCount}, basic strategy still holds — no deviation applies yet.`;
+      elements.deviationFeedback.className = 'strategy-feedback correct';
+    } else {
+      elements.deviationFeedback.textContent = isDeviationInPlay
+        ? `Not quite. The correct move is ${describeAction(correctCode)} — at a true count of ${trueCount} this crosses the Illustrious 18 index of ${entry.index}, overriding basic strategy.`
+        : `Not quite. The correct move is ${describeAction(correctCode)} — basic strategy still applies at a true count of ${trueCount}.`;
+      elements.deviationFeedback.className = 'strategy-feedback incorrect';
+    }
+  }
+
+  if (elements.deviationNextBtn) elements.deviationNextBtn.classList.remove('hidden');
+  updateDeviationDrillProgress();
+}
+
+function updateDeviationDrillProgress() {
+  if (!elements.deviationProgressFill) return;
+  const total = state.deviationDrillState.sessionTotal || 1;
+  const remaining = state.deviationDrillState.pool.length;
+  const done = total - remaining;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  elements.deviationProgressFill.style.width = `${pct}%`;
+  if (elements.deviationProgressLabel) {
+    elements.deviationProgressLabel.textContent = `${remaining} / ${total} scenarios remaining`;
+  }
+}
+
+function renderDeviationDrillCompletion() {
+  state.deviationDrillState.currentEntry = null;
+  if (elements.deviationActionGrid) elements.deviationActionGrid.innerHTML = '';
+  if (elements.deviationNextBtn) elements.deviationNextBtn.classList.add('hidden');
+  updateDeviationDrillProgress();
+  if (elements.deviationFeedback) {
+    elements.deviationFeedback.className = 'strategy-feedback complete';
+    elements.deviationFeedback.innerHTML = `You've practiced every Illustrious 18 scenario!<br /><button type="button" class="menu-btn primary strategy-complete-btn" id="deviationPracticeAgainBtn">Practice Again</button>`;
+  }
+  const againBtn = document.getElementById('deviationPracticeAgainBtn');
+  if (againBtn) againBtn.addEventListener('click', startDeviationDrillSession);
+}
+
+function bindDeviationDrillEvents() {
+  if (elements.deviationNextBtn) {
+    elements.deviationNextBtn.addEventListener('click', () => drawNextDeviationScenario());
+  }
 }
 
 window.addEventListener('beforeunload', () => {

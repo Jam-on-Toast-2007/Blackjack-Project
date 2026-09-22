@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>Blackjack Terminus</title>
-    <link rel="stylesheet" href="styles.css?v=blackjack-terminus-hole-card-peek-fix-v1" />
+    <link rel="stylesheet" href="styles.css?v=blackjack-terminus-profiles-deviations-v1" />
   </head>
   <body>
     <div id="app">
@@ -32,6 +32,45 @@
           <button class="menu-btn warning" data-screen="card-counting">Card Counting</button>
           <button class="menu-btn secondary" data-screen="rules">Rules/Strategies</button>
           <button class="menu-btn secondary" data-screen="settings">Settings</button>
+        </div>
+      </div>
+
+      <div id="blackjackEntryScreen" class="screen">
+        <div class="menu-panel">
+          <h1>Blackjack Terminus</h1>
+          <h2>Choose how to continue</h2>
+          <p>Every bankroll and set of stats lives on its own profile.</p>
+          <div class="divider"></div>
+          <button class="menu-btn primary" id="entryPlayBtn">Play</button>
+          <button class="menu-btn accent" id="entryUseProfileBtn">Use Existing Profile</button>
+          <button class="menu-btn warning" id="entryCreateProfileBtn">Create New Profile</button>
+          <button class="menu-btn secondary" data-screen="menu">Back Out</button>
+        </div>
+      </div>
+
+      <div id="profileMenuScreen" class="screen">
+        <div class="menu-panel">
+          <h1 id="profileMenuName">Profile</h1>
+          <h2 id="profileMenuSummary">Balance: $1000.00 • Preset: Training</h2>
+          <p id="profileMenuInactiveNote" class="profile-inactive-note hidden">This profile is out of funds and marked inactive. You can still view its statistics, but you cannot play on it.</p>
+          <div class="divider"></div>
+          <button class="menu-btn primary" id="profileMenuPlayBtn">Play</button>
+          <button class="menu-btn accent" id="profileMenuStatsBtn">Profile Statistics</button>
+          <button class="menu-btn warning" id="profileMenuSwitchBtn">Switch Profiles</button>
+          <button class="menu-btn secondary" data-screen="menu">Back Out</button>
+        </div>
+      </div>
+
+      <div id="profileStatsScreen" class="screen">
+        <div class="page-panel">
+          <div class="page-header">
+            <h1 id="profileStatsName">Profile Statistics</h1>
+            <p>Track how this profile has performed at the table.</p>
+          </div>
+          <div id="profileStatsContent" class="page-content"></div>
+          <div class="toolbar compact-toolbar">
+            <button class="menu-btn secondary" id="profileStatsBackBtn">Back to Profile Menu</button>
+          </div>
         </div>
       </div>
 
@@ -85,6 +124,14 @@
                 <input id="gameDealingSpeedSlider" type="range" min="20" max="100" value="80" />
                 <span id="gameDealingSpeedValue">80%</span>
               </div>
+            </div>
+            <div class="slider-row">
+              <label for="trueCountDeviationToggle">True count modifies basic strategy</label>
+              <label class="toggle-switch">
+                <input type="checkbox" id="trueCountDeviationToggle" />
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                <span class="toggle-label" id="trueCountDeviationLabel">Off</span>
+              </label>
             </div>
           </section>
 
@@ -317,11 +364,16 @@
 
           <div class="divider"></div>
 
-          <div class="strategy-hub-grid single-card">
+          <div class="strategy-hub-grid">
             <button type="button" class="strategy-hub-card" data-screen="counting-running-drill">
               <div class="strategy-hub-icon">🔢</div>
               <h3>Running Count Drill</h3>
               <p>Watch full hands play out at the table on their own, then enter the running count from memory before the next hand begins.</p>
+            </button>
+            <button type="button" class="strategy-hub-card" data-screen="counting-deviation-drill">
+              <div class="strategy-hub-icon">🎯</div>
+              <h3>Deviation Drill</h3>
+              <p>Practice the Illustrious 18 — the count-based index plays that override basic strategy at key true counts.</p>
             </button>
           </div>
 
@@ -334,6 +386,44 @@
 
           <div class="toolbar compact-toolbar">
             <button class="menu-btn secondary" data-screen="menu">Main Menu</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="countingDeviationDrillScreen" class="screen">
+        <div class="trainer-panel strategy-panel">
+          <div class="page-header">
+            <h1>Deviation Drill</h1>
+            <p>Practice the Illustrious 18 — the count-based index plays that override basic strategy when the true count crosses a threshold.</p>
+          </div>
+
+          <div id="deviationProgressRow" class="strategy-progress-row">
+            <div class="strategy-progress-track"><div id="deviationProgressFill" class="strategy-progress-fill"></div></div>
+            <div id="deviationProgressLabel" class="strategy-progress-label">0 / 0 scenarios remaining</div>
+          </div>
+
+          <div class="deviation-count-banner" id="deviationCountBanner">True count: 0</div>
+
+          <div id="deviationPlayArea" class="strategy-play-area">
+            <section class="dealer-zone strategy-zone">
+              <h3>Dealer shows</h3>
+              <div id="deviationDealerHand" class="hand-row"></div>
+            </section>
+
+            <section class="player-zone strategy-zone">
+              <h3>Your hand <span id="deviationHandTotal" class="hand-total"></span></h3>
+              <div id="deviationPlayerHand" class="hand-row"></div>
+            </section>
+          </div>
+
+          <div id="deviationFeedback" class="strategy-feedback">Choose the best move for this hand at this true count.</div>
+
+          <div id="deviationActionGrid" class="action-grid strategy-action-grid"></div>
+
+          <button type="button" id="deviationNextBtn" class="menu-btn primary strategy-next-btn hidden">Next Scenario</button>
+
+          <div class="toolbar compact-toolbar">
+            <button class="menu-btn secondary" data-screen="card-counting">Card Counting Menu</button>
           </div>
         </div>
       </div>
@@ -404,6 +494,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=blackjack-terminus-hole-card-peek-fix-v1"></script>
+    <script src="app.js?v=blackjack-terminus-profiles-deviations-v1"></script>
   </body>
 </html>
