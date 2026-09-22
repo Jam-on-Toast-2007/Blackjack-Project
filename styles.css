@@ -1233,11 +1233,12 @@ button[data-screen="settings"] {
   margin: 12px 0 16px;
   max-height: 320px;
   overflow-y: auto;
+  width: 100%;
 }
 
 .profile-row {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 10px;
   padding: 8px 10px;
   border-radius: 10px;
@@ -1261,15 +1262,17 @@ button[data-screen="settings"] {
 }
 
 .modal-actions button.profile-icon-btn {
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
-  border-radius: 4px;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  aspect-ratio: 1 / 1;
+  align-self: stretch;
+  border-radius: 6px;
   border: 1px solid rgba(199, 150, 53, 0.7);
   background: rgba(13, 8, 15, 0.85);
   color: var(--gold-soft);
   font-weight: 800;
-  font-size: 0.72rem;
+  font-size: 0.85rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
