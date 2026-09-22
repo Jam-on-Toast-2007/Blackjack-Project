@@ -88,6 +88,15 @@ const state = {
     answered: false,
     sessionTotal: 0
   },
+  countQuizState: {
+    pool: [],
+    mistakes: [],
+    currentQuestion: null,
+    selected: [],
+    answered: false,
+    view: 'practice',
+    sessionTotal: 0
+  },
   awaitingBet: false,
   modal: null,
   isDealing: false,
@@ -452,6 +461,24 @@ const elements = {
   quizMistakesList: document.getElementById('quizMistakesList'),
   quizPracticeMistakesBtn: document.getElementById('quizPracticeMistakesBtn'),
   quizBackToListBtn: document.getElementById('quizBackToListBtn'),
+  countQuizTabPractice: document.getElementById('countQuizTabPractice'),
+  countQuizTabMistakes: document.getElementById('countQuizTabMistakes'),
+  countQuizMistakesCountBadge: document.getElementById('countQuizMistakesCountBadge'),
+  countQuizProgressRow: document.getElementById('countQuizProgressRow'),
+  countQuizProgressFill: document.getElementById('countQuizProgressFill'),
+  countQuizProgressLabel: document.getElementById('countQuizProgressLabel'),
+  countQuizPlayArea: document.getElementById('countQuizPlayArea'),
+  countQuizTypeTag: document.getElementById('countQuizTypeTag'),
+  countQuizPrompt: document.getElementById('countQuizPrompt'),
+  countQuizOptions: document.getElementById('countQuizOptions'),
+  countQuizSubmitBtn: document.getElementById('countQuizSubmitBtn'),
+  countQuizFeedback: document.getElementById('countQuizFeedback'),
+  countQuizNextBtn: document.getElementById('countQuizNextBtn'),
+  countQuizMistakesPanel: document.getElementById('countQuizMistakesPanel'),
+  countQuizMistakesEmpty: document.getElementById('countQuizMistakesEmpty'),
+  countQuizMistakesList: document.getElementById('countQuizMistakesList'),
+  countQuizPracticeMistakesBtn: document.getElementById('countQuizPracticeMistakesBtn'),
+  countQuizBackToListBtn: document.getElementById('countQuizBackToListBtn'),
   chartSurrenderToggle: document.getElementById('chartSurrenderToggle'),
   chartLegend: document.getElementById('chartLegend'),
   chartScoreBanner: document.getElementById('chartScoreBanner'),
@@ -532,6 +559,7 @@ function init() {
   renderStrategyScreen();
   renderQuestionnaireScreen();
   renderChartsScreen();
+  renderCountQuizScreen();
   appendLog('Blackjack Terminus ready.');
 }
 
@@ -771,6 +799,7 @@ function bindStaticEvents() {
   bindGameDealingSpeedSlider();
   bindProfileScreenEvents();
   bindDeviationDrillEvents();
+  bindCountQuizEvents();
 }
 
 function renderScreen(name) {
@@ -4412,6 +4441,572 @@ function bindDeviationDrillEvents() {
   if (elements.deviationNextBtn) {
     elements.deviationNextBtn.addEventListener('click', () => drawNextDeviationScenario());
   }
+}
+
+/* ------------------------------------------------------------------------ */
+/* Count Quiz minigame (true count math, running count, and Illustrious 18  */
+/* trivia — a knowledge quiz that complements the hands-on Deviation Drill) */
+/* ------------------------------------------------------------------------ */
+
+function formatSignedNumber(value) {
+  return value > 0 ? `+${value}` : `${value}`;
+}
+
+function formatDeckCount(value) {
+  const rounded = Math.round(value * 10) / 10;
+  return `${rounded % 1 === 0 ? rounded : rounded.toFixed(1)} deck${rounded === 1 ? '' : 's'}`;
+}
+
+function buildNumericChoiceOptions(idPrefix, correctValue, decoyValues, formatFn) {
+  const distinctDecoys = [...new Set(decoyValues)].filter((value) => value !== correctValue).slice(0, 3);
+  const values = [correctValue, ...distinctDecoys];
+  shuffle(values);
+  return {
+    options: values.map((value) => ({ id: `${idPrefix}-${value}`, label: formatFn(value) })),
+    correctIds: [`${idPrefix}-${correctValue}`]
+  };
+}
+
+const TRUE_COUNT_MATH_ENTRIES = [
+  { rc: 4, decks: 2 },
+  { rc: 9, decks: 3 },
+  { rc: -8, decks: 4 },
+  { rc: 10, decks: 5 },
+  { rc: -5, decks: 1 },
+  { rc: 3, decks: 1.5 },
+  { rc: -3, decks: 1.5 },
+  { rc: 12, decks: 6 },
+  { rc: 0, decks: 3 },
+  { rc: 15, decks: 5 },
+  { rc: -9, decks: 3 },
+  { rc: 8, decks: 2 }
+];
+
+function buildTrueCountMathQuestions() {
+  return TRUE_COUNT_MATH_ENTRIES.map((entry, index) => {
+    const trueCount = Math.round(entry.rc / entry.decks);
+    const idPrefix = `tcmath-${index}`;
+    const { options, correctIds } = buildNumericChoiceOptions(idPrefix, trueCount, [trueCount + 1, trueCount - 1, trueCount + 2, trueCount - 2], formatSignedNumber);
+    return {
+      id: idPrefix,
+      type: 'mc',
+      prompt: `The running count is ${formatSignedNumber(entry.rc)} with ${formatDeckCount(entry.decks)} remaining in the shoe. What is the true count (rounded to the nearest whole number)?`,
+      options,
+      correctIds
+    };
+  });
+}
+
+const RUNNING_COUNT_SEQUENCES = [
+  ['5', 'K', '2', 'A', '9'],
+  ['3', '7', 'J', '4', '6'],
+  ['A', 'A', '2', '2', '2'],
+  ['10', '9', '8', '7', '6'],
+  ['4', '5', 'Q', 'K', 'A'],
+  ['2', '3', '4', '5', '6'],
+  ['10', 'J', 'Q', 'K', 'A'],
+  ['7', '8', '9', '7', '8']
+];
+
+const SEQUENCE_SUITS = ['♠', '♥', '♣', '♦', '♠'];
+
+function buildRunningCountSequenceQuestions() {
+  return RUNNING_COUNT_SEQUENCES.map((ranks, index) => {
+    const total = ranks.reduce((sum, rank) => sum + getCardCountingValue({ rank }), 0);
+    const idPrefix = `rcseq-${index}`;
+    const cardText = ranks.map((rank, i) => `${rank}${SEQUENCE_SUITS[i]}`).join(', ');
+    const { options, correctIds } = buildNumericChoiceOptions(idPrefix, total, [total + 1, total - 1, total + 2, total - 2], formatSignedNumber);
+    return {
+      id: idPrefix,
+      type: 'mc',
+      prompt: `Using the Hi-Lo system, starting from a running count of 0, what is the running count after these cards are dealt: ${cardText}?`,
+      options,
+      correctIds
+    };
+  });
+}
+
+function buildCardTagQuestions() {
+  const entries = [
+    { id: 'tag-tf-1', prompt: 'In the Hi-Lo counting system, a 2 is tagged +1.', isTrue: true },
+    { id: 'tag-tf-2', prompt: 'In the Hi-Lo counting system, a 9 is tagged +1.', isTrue: false },
+    { id: 'tag-tf-3', prompt: 'In the Hi-Lo counting system, a 7 is tagged 0 (neutral).', isTrue: true },
+    { id: 'tag-tf-4', prompt: 'In the Hi-Lo counting system, a King is tagged -1.', isTrue: true },
+    { id: 'tag-tf-5', prompt: 'In the Hi-Lo counting system, an Ace is tagged the same as a 5.', isTrue: false },
+    { id: 'tag-tf-6', prompt: 'In the Hi-Lo counting system, a 6 is tagged the same as a 2.', isTrue: true },
+    { id: 'tag-tf-7', prompt: 'In the Hi-Lo counting system, an 8 is tagged -1.', isTrue: false },
+    { id: 'tag-tf-8', prompt: 'In the Hi-Lo counting system, any 10-value card (10, J, Q, or K) is tagged -1.', isTrue: true },
+    { id: 'tag-tf-9', prompt: 'In the Hi-Lo counting system, a 3 is tagged 0 (neutral).', isTrue: false },
+    { id: 'tag-tf-10', prompt: 'In the Hi-Lo counting system, low cards (2 through 6) and high cards (10 through Ace) cancel each other out, while 7, 8, and 9 never affect the running count.', isTrue: true }
+  ];
+
+  return entries.map(({ id, prompt, isTrue }) => ({
+    id,
+    type: 'tf',
+    prompt,
+    options: [{ id: 'true', label: 'True' }, { id: 'false', label: 'False' }],
+    correctIds: [isTrue ? 'true' : 'false']
+  }));
+}
+
+function illustriousHandLabel(entry) {
+  if (entry.kind === 'pair') {
+    const label = entry.rank === '10' ? '10-value cards' : `${entry.rank}s`;
+    return `a pair of ${label} vs a dealer ${dealerLabelForValue(entry.dealer)}`;
+  }
+  return `a hard ${entry.total} vs a dealer ${dealerLabelForValue(entry.dealer)}`;
+}
+
+function buildIndexDecoys(correctIndex) {
+  const candidates = [correctIndex - 4, correctIndex - 2, correctIndex - 1, correctIndex + 1, correctIndex + 2, correctIndex + 4];
+  return sampleEntries(candidates.filter((value) => value !== correctIndex), 3);
+}
+
+function buildIllustriousIndexQuestions() {
+  return DEVIATION_HAND_ENTRIES.map((entry, index) => {
+    const idPrefix = `i18-index-${index}`;
+    const handLabel = illustriousHandLabel(entry);
+    const prompt = entry.direction === 'gte'
+      ? `According to the Illustrious 18, at what true count should you start playing ${describeAction(entry.move)} on ${handLabel} (instead of the basic-strategy play)?`
+      : `According to the Illustrious 18, below what true count should you deviate to Hit on ${handLabel} (instead of the basic-strategy play)?`;
+    const { options, correctIds } = buildNumericChoiceOptions(idPrefix, entry.index, buildIndexDecoys(entry.index), formatSignedNumber);
+    return { id: idPrefix, type: 'mc', prompt, options, correctIds };
+  });
+}
+
+const ILLUSTRIOUS_CHOOSE_ALL_KEYS = [
+  { kind: 'hard', total: 16, dealer: 10 },
+  { kind: 'hard', total: 9, dealer: 2 },
+  { kind: 'pair', rank: '10', dealer: 6 },
+  { kind: 'hard', total: 12, dealer: 5 }
+];
+
+const CHOOSE_ALL_INDEX_OFFSETS = [-6, -3, -1, 1, 3, 6];
+
+function buildIllustriousChooseAllQuestions() {
+  return ILLUSTRIOUS_CHOOSE_ALL_KEYS.map((key, index) => {
+    const entry = DEVIATION_HAND_ENTRIES.find((candidate) => candidate.kind === key.kind && candidate.dealer === key.dealer && (key.kind === 'pair' ? candidate.rank === key.rank : candidate.total === key.total));
+    if (!entry) return null;
+
+    const handLabel = illustriousHandLabel(entry);
+    const candidateCounts = CHOOSE_ALL_INDEX_OFFSETS.map((offset) => entry.index + offset);
+    const correctCounts = entry.direction === 'gte'
+      ? candidateCounts.filter((tc) => tc > entry.index)
+      : candidateCounts.filter((tc) => tc < entry.index);
+
+    const idPrefix = `i18-all-${index}`;
+    const prompt = entry.direction === 'gte'
+      ? `Select all of the true counts below where the Illustrious 18 says to play ${describeAction(entry.move)} on ${handLabel} (instead of the basic-strategy play).`
+      : `Select all of the true counts below where the Illustrious 18 says to deviate to Hit on ${handLabel} (instead of the basic-strategy play).`;
+
+    return {
+      id: idPrefix,
+      type: 'all',
+      prompt,
+      options: candidateCounts.map((tc) => ({ id: `${idPrefix}-${tc}`, label: formatSignedNumber(tc) })),
+      correctIds: correctCounts.map((tc) => `${idPrefix}-${tc}`)
+    };
+  }).filter(Boolean);
+}
+
+function buildInsuranceCountQuestions() {
+  const insuranceEntry = ILLUSTRIOUS_18.find((entry) => entry.kind === 'insurance');
+  const questions = [
+    {
+      id: 'insurance-tf-1',
+      type: 'tf',
+      prompt: 'True or False: Basic strategy says you should never take insurance, but card counters can profitably take it once the true count is high enough.',
+      options: [{ id: 'true', label: 'True' }, { id: 'false', label: 'False' }],
+      correctIds: ['true']
+    }
+  ];
+
+  if (insuranceEntry) {
+    const { options, correctIds } = buildNumericChoiceOptions('insurance-index', insuranceEntry.index, [insuranceEntry.index + 1, insuranceEntry.index - 1, insuranceEntry.index + 2], formatSignedNumber);
+    questions.push({
+      id: 'insurance-index',
+      type: 'mc',
+      prompt: 'According to the Illustrious 18, at what true count should you start taking insurance?',
+      options,
+      correctIds
+    });
+  }
+
+  return questions;
+}
+
+function buildCountConceptQuestions() {
+  const entries = [
+    { id: 'concept-tf-1', prompt: 'True or False: A positive true count means the remaining shoe is richer in high cards (10s and Aces), which favors the player.', isTrue: true },
+    { id: 'concept-tf-2', prompt: 'True or False: A negative true count means the remaining shoe is richer in high cards (10s and Aces).', isTrue: false },
+    { id: 'concept-tf-3', prompt: 'True or False: The true count adjusts the running count for how many decks remain, giving a more accurate picture of the shoe than the running count alone.', isTrue: true },
+    { id: 'concept-tf-4', prompt: 'True or False: A running count of +10 always means the exact same thing regardless of how many decks remain in the shoe.', isTrue: false },
+    { id: 'concept-tf-5', prompt: 'True or False: As the true count rises well above zero, players should generally bet more and stand or double more often than basic strategy alone suggests.', isTrue: true },
+    { id: 'concept-tf-6', prompt: 'True or False: As the true count drops well below zero, players should generally play more conservatively (hitting more) than basic strategy alone suggests.', isTrue: true }
+  ];
+
+  return entries.map(({ id, prompt, isTrue }) => ({
+    id,
+    type: 'tf',
+    prompt,
+    options: [{ id: 'true', label: 'True' }, { id: 'false', label: 'False' }],
+    correctIds: [isTrue ? 'true' : 'false']
+  }));
+}
+
+const DECK_ESTIMATION_ENTRIES = [
+  { shoeDecks: 6, dealt: 156 },
+  { shoeDecks: 8, dealt: 208 },
+  { shoeDecks: 4, dealt: 52 },
+  { shoeDecks: 2, dealt: 26 },
+  { shoeDecks: 6, dealt: 260 },
+  { shoeDecks: 1, dealt: 26 }
+];
+
+function buildDeckEstimationQuestions() {
+  return DECK_ESTIMATION_ENTRIES.map((entry, index) => {
+    const totalCards = entry.shoeDecks * 52;
+    const remainingDecks = Math.round(((totalCards - entry.dealt) / 52) * 2) / 2;
+    const idPrefix = `deck-est-${index}`;
+    const { options, correctIds } = buildNumericChoiceOptions(idPrefix, remainingDecks, [remainingDecks + 1, remainingDecks - 1, remainingDecks + 0.5, remainingDecks - 0.5], formatDeckCount);
+    return {
+      id: idPrefix,
+      type: 'mc',
+      prompt: `A ${entry.shoeDecks}-deck shoe starts with ${totalCards} cards. If ${entry.dealt} cards have already been dealt, about how many decks remain?`,
+      options,
+      correctIds
+    };
+  });
+}
+
+function buildCountQuizCatalog() {
+  return [
+    ...buildTrueCountMathQuestions(),
+    ...buildRunningCountSequenceQuestions(),
+    ...buildCardTagQuestions(),
+    ...buildIllustriousIndexQuestions(),
+    ...buildIllustriousChooseAllQuestions(),
+    ...buildInsuranceCountQuestions(),
+    ...buildCountConceptQuestions(),
+    ...buildDeckEstimationQuestions()
+  ];
+}
+
+const COUNT_QUIZ_CATALOG = buildCountQuizCatalog();
+const COUNT_QUIZ_CATALOG_BY_ID = Object.fromEntries(COUNT_QUIZ_CATALOG.map((q) => [q.id, q]));
+const COUNT_QUIZ_MISTAKES_STORAGE_KEY = 'blackjackTerminusCountQuizMistakes';
+
+function loadCountQuizMistakesFromStorage() {
+  try {
+    const raw = localStorage.getItem(COUNT_QUIZ_MISTAKES_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((id) => COUNT_QUIZ_CATALOG_BY_ID[id]) : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function persistCountQuizMistakes() {
+  try {
+    localStorage.setItem(COUNT_QUIZ_MISTAKES_STORAGE_KEY, JSON.stringify(state.countQuizState.mistakes));
+  } catch (error) {
+    // localStorage may be unavailable; the mistakes bank simply won't persist across reloads.
+  }
+}
+
+function addCountQuizMistake(id) {
+  if (!state.countQuizState.mistakes.includes(id)) {
+    state.countQuizState.mistakes.push(id);
+    persistCountQuizMistakes();
+  }
+  updateCountQuizMistakesBadge();
+}
+
+function removeCountQuizMistake(id) {
+  state.countQuizState.mistakes = state.countQuizState.mistakes.filter((mistakeId) => mistakeId !== id);
+  persistCountQuizMistakes();
+  updateCountQuizMistakesBadge();
+  if (state.countQuizState.view === 'mistakesList') renderCountQuizMistakesList();
+}
+
+function updateCountQuizMistakesBadge() {
+  if (elements.countQuizMistakesCountBadge) {
+    elements.countQuizMistakesCountBadge.textContent = state.countQuizState.mistakes.length;
+  }
+}
+
+function getAllowedCountQuestionIds() {
+  return COUNT_QUIZ_CATALOG.map((q) => q.id);
+}
+
+function pickNextCountQuizId() {
+  const pool = state.countQuizState.pool;
+  if (pool.length === 0) return null;
+  if (pool.length === 1) return pool[0];
+
+  const currentId = state.countQuizState.currentQuestion ? state.countQuizState.currentQuestion.id : null;
+  let index;
+  do {
+    index = Math.floor(Math.random() * pool.length);
+  } while (pool[index] === currentId && pool.length > 1);
+  return pool[index];
+}
+
+function removeFromCountQuizPool(id) {
+  const index = state.countQuizState.pool.indexOf(id);
+  if (index >= 0) state.countQuizState.pool.splice(index, 1);
+  updateCountQuizProgress();
+}
+
+function startNewCountQuizPool() {
+  state.countQuizState.view = 'practice';
+  state.countQuizState.pool = getAllowedCountQuestionIds();
+  shuffle(state.countQuizState.pool);
+  state.countQuizState.sessionTotal = state.countQuizState.pool.length;
+  state.countQuizState.currentQuestion = null;
+  elements.countQuizPlayArea.classList.remove('hidden');
+  drawNextCountQuizQuestion();
+}
+
+function startCountQuizMistakesPractice() {
+  if (state.countQuizState.mistakes.length === 0) return;
+  state.countQuizState.view = 'mistakesPractice';
+  state.countQuizState.pool = state.countQuizState.mistakes.filter((id) => COUNT_QUIZ_CATALOG_BY_ID[id]);
+  shuffle(state.countQuizState.pool);
+  state.countQuizState.sessionTotal = state.countQuizState.pool.length;
+  state.countQuizState.currentQuestion = null;
+
+  elements.countQuizMistakesPanel.classList.add('hidden');
+  elements.countQuizPlayArea.classList.remove('hidden');
+  elements.countQuizFeedback.classList.add('hidden');
+  elements.countQuizProgressRow.classList.remove('hidden');
+  elements.countQuizBackToListBtn.classList.remove('hidden');
+  drawNextCountQuizQuestion();
+}
+
+function drawNextCountQuizQuestion() {
+  elements.countQuizNextBtn.classList.add('hidden');
+  elements.countQuizFeedback.classList.add('hidden');
+  const nextId = pickNextCountQuizId();
+
+  if (!nextId) {
+    renderCountQuizCompletion();
+    return;
+  }
+
+  const question = COUNT_QUIZ_CATALOG_BY_ID[nextId];
+  state.countQuizState.currentQuestion = question;
+  state.countQuizState.selected = [];
+  state.countQuizState.answered = false;
+  renderCountQuizQuestion();
+}
+
+function renderCountQuizQuestion() {
+  elements.countQuizPlayArea.classList.remove('hidden');
+  const question = state.countQuizState.currentQuestion;
+  const typeLabels = { mc: 'Multiple Choice', tf: 'True or False', all: 'Choose All That Apply' };
+  elements.countQuizTypeTag.textContent = typeLabels[question.type] || 'Question';
+  elements.countQuizPrompt.textContent = question.prompt;
+
+  elements.countQuizOptions.innerHTML = question.options
+    .map((option) => `<button type="button" class="quiz-option" data-count-quiz-option="${option.id}">${option.label}</button>`)
+    .join('');
+
+  elements.countQuizSubmitBtn.classList.toggle('hidden', question.type !== 'all');
+  elements.countQuizSubmitBtn.disabled = true;
+  updateCountQuizProgress();
+}
+
+function correctCountQuizAnswerSummary(question) {
+  return question.options.filter((o) => question.correctIds.includes(o.id)).map((o) => o.label).join(', ');
+}
+
+function markCountQuizOptions(question, selected, correct) {
+  elements.countQuizOptions.querySelectorAll('[data-count-quiz-option]').forEach((button) => {
+    button.disabled = true;
+    const optionId = button.dataset.countQuizOption;
+    if (correct.includes(optionId)) button.classList.add('correct-answer');
+    if (selected.includes(optionId) && !correct.includes(optionId)) button.classList.add('wrong-answer');
+  });
+  elements.countQuizSubmitBtn.disabled = true;
+}
+
+function handleCountQuizAnswer() {
+  if (state.countQuizState.answered) return;
+  state.countQuizState.answered = true;
+
+  const question = state.countQuizState.currentQuestion;
+  const selected = [...state.countQuizState.selected].sort();
+  const correct = [...question.correctIds].sort();
+  const isCorrect = selected.length === correct.length && selected.every((id, i) => id === correct[i]);
+
+  markCountQuizOptions(question, selected, correct);
+
+  if (isCorrect) {
+    handleCountQuizCorrect(question);
+  } else {
+    handleCountQuizIncorrect(question, correct);
+  }
+}
+
+function handleCountQuizCorrect(question) {
+  elements.countQuizFeedback.textContent = 'Correct! Well played.';
+  elements.countQuizFeedback.className = 'strategy-feedback correct';
+  elements.countQuizFeedback.classList.remove('hidden');
+  removeFromCountQuizPool(question.id);
+
+  if (state.countQuizState.view === 'mistakesPractice') {
+    showModal(
+      'Nice work!',
+      'Remove this question from your Mistakes Bank, or keep it there to practice some more?',
+      ['Remove from Mistakes', 'Keep in Mistakes'],
+      (choice) => {
+        if (choice === 0) removeCountQuizMistake(question.id);
+        drawNextCountQuizQuestion();
+      }
+    );
+  } else {
+    elements.countQuizNextBtn.classList.remove('hidden');
+  }
+}
+
+function handleCountQuizIncorrect(question, correct) {
+  addCountQuizMistake(question.id);
+  elements.countQuizFeedback.textContent = `Not quite — the correct answer is: ${correctCountQuizAnswerSummary(question)}.`;
+  elements.countQuizFeedback.className = 'strategy-feedback incorrect';
+  elements.countQuizFeedback.classList.remove('hidden');
+  elements.countQuizNextBtn.classList.remove('hidden');
+}
+
+function updateCountQuizProgress() {
+  const total = state.countQuizState.sessionTotal || 1;
+  const remaining = state.countQuizState.pool.length;
+  const done = total - remaining;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  elements.countQuizProgressFill.style.width = `${pct}%`;
+  elements.countQuizProgressLabel.textContent = state.countQuizState.view === 'mistakesPractice'
+    ? `${remaining} / ${total} mistakes remaining`
+    : `${remaining} / ${total} questions remaining`;
+}
+
+function renderCountQuizCompletion() {
+  state.countQuizState.currentQuestion = null;
+  elements.countQuizPlayArea.classList.add('hidden');
+  elements.countQuizNextBtn.classList.add('hidden');
+  updateCountQuizProgress();
+
+  const isMistakes = state.countQuizState.view === 'mistakesPractice';
+  elements.countQuizFeedback.classList.remove('hidden');
+  elements.countQuizFeedback.className = 'strategy-feedback complete';
+  elements.countQuizFeedback.innerHTML = isMistakes
+    ? `You've cleared every question in this Mistakes session!<br /><button type="button" class="menu-btn primary strategy-complete-btn" id="countQuizBackToListAfterBtn">Back to Mistakes List</button>`
+    : `You've answered every question!<br /><button type="button" class="menu-btn primary strategy-complete-btn" id="countQuizPracticeAgainBtn">Practice Again</button>`;
+
+  const backBtn = document.getElementById('countQuizBackToListAfterBtn');
+  if (backBtn) backBtn.addEventListener('click', showCountQuizMistakesListView);
+
+  const againBtn = document.getElementById('countQuizPracticeAgainBtn');
+  if (againBtn) againBtn.addEventListener('click', startNewCountQuizPool);
+}
+
+function showCountQuizPracticeView() {
+  state.countQuizState.view = 'practice';
+  elements.countQuizTabPractice.classList.add('active');
+  elements.countQuizTabMistakes.classList.remove('active');
+  elements.countQuizMistakesPanel.classList.add('hidden');
+  elements.countQuizPlayArea.classList.remove('hidden');
+  elements.countQuizFeedback.classList.add('hidden');
+  elements.countQuizProgressRow.classList.remove('hidden');
+  elements.countQuizBackToListBtn.classList.add('hidden');
+
+  if (!state.countQuizState.currentQuestion && state.countQuizState.pool.length === 0) {
+    startNewCountQuizPool();
+  } else if (state.countQuizState.currentQuestion) {
+    renderCountQuizQuestion();
+  } else {
+    renderCountQuizCompletion();
+  }
+}
+
+function showCountQuizMistakesListView() {
+  state.countQuizState.view = 'mistakesList';
+  elements.countQuizTabMistakes.classList.add('active');
+  elements.countQuizTabPractice.classList.remove('active');
+  elements.countQuizPlayArea.classList.add('hidden');
+  elements.countQuizFeedback.classList.add('hidden');
+  elements.countQuizNextBtn.classList.add('hidden');
+  elements.countQuizProgressRow.classList.add('hidden');
+  elements.countQuizBackToListBtn.classList.add('hidden');
+  elements.countQuizMistakesPanel.classList.remove('hidden');
+  renderCountQuizMistakesList();
+}
+
+function renderCountQuizMistakesList() {
+  const ids = state.countQuizState.mistakes;
+  elements.countQuizMistakesEmpty.classList.toggle('hidden', ids.length > 0);
+  elements.countQuizPracticeMistakesBtn.disabled = ids.length === 0;
+
+  elements.countQuizMistakesList.innerHTML = ids
+    .map((id) => {
+      const question = COUNT_QUIZ_CATALOG_BY_ID[id];
+      if (!question) return '';
+      return `
+        <div class="mistake-row">
+          <div class="mistake-row-label">${question.prompt}</div>
+          <button type="button" class="mistake-remove-btn" data-remove-count-quiz-mistake="${id}" title="Remove from Mistakes Bank">✕</button>
+        </div>
+      `;
+    })
+    .join('');
+
+  updateCountQuizMistakesBadge();
+}
+
+function renderCountQuizScreen() {
+  state.countQuizState.mistakes = loadCountQuizMistakesFromStorage();
+  updateCountQuizMistakesBadge();
+  showCountQuizPracticeView();
+}
+
+function bindCountQuizEvents() {
+  elements.countQuizTabPractice.addEventListener('click', showCountQuizPracticeView);
+  elements.countQuizTabMistakes.addEventListener('click', showCountQuizMistakesListView);
+  elements.countQuizPracticeMistakesBtn.addEventListener('click', startCountQuizMistakesPractice);
+  elements.countQuizBackToListBtn.addEventListener('click', showCountQuizMistakesListView);
+
+  elements.countQuizNextBtn.addEventListener('click', () => {
+    elements.countQuizNextBtn.classList.add('hidden');
+    drawNextCountQuizQuestion();
+  });
+
+  elements.countQuizOptions.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-count-quiz-option]');
+    if (!button || state.countQuizState.answered) return;
+    const question = state.countQuizState.currentQuestion;
+
+    if (question.type === 'all') {
+      button.classList.toggle('selected');
+      const selected = Array.from(elements.countQuizOptions.querySelectorAll('.quiz-option.selected')).map((el) => el.dataset.countQuizOption);
+      state.countQuizState.selected = selected;
+      elements.countQuizSubmitBtn.disabled = selected.length === 0;
+      return;
+    }
+
+    state.countQuizState.selected = [button.dataset.countQuizOption];
+    handleCountQuizAnswer();
+  });
+
+  elements.countQuizSubmitBtn.addEventListener('click', () => {
+    if (state.countQuizState.answered || state.countQuizState.selected.length === 0) return;
+    handleCountQuizAnswer();
+  });
+
+  elements.countQuizMistakesList.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-remove-count-quiz-mistake]');
+    if (!button) return;
+    removeCountQuizMistake(button.dataset.removeCountQuizMistake);
+  });
 }
 
 window.addEventListener('beforeunload', () => {

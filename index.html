@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>Blackjack Terminus</title>
-    <link rel="stylesheet" href="styles.css?v=blackjack-terminus-guest-play-v11" />
+    <link rel="stylesheet" href="styles.css?v=blackjack-terminus-count-quiz-v2" />
   </head>
   <body>
     <div id="app">
@@ -375,13 +375,18 @@
               <h3>Deviation Drill</h3>
               <p>Practice the Illustrious 18 — the count-based index plays that override basic strategy at key true counts.</p>
             </button>
+            <button type="button" class="strategy-hub-card" data-screen="counting-questionnaire">
+              <div class="strategy-hub-icon">🧮</div>
+              <h3>Count Quiz</h3>
+              <p>Multiple choice, true/false, and choose-all-that-apply questions on true count math, running count, and Illustrious 18 trivia.</p>
+            </button>
           </div>
 
           <div class="strategy-hub-footer">
             <div class="strategy-hub-suits">
               <span class="suit-glyph">♠</span><span class="suit-glyph red">♥</span><span class="suit-glyph">♣</span><span class="suit-glyph red">♦</span>
             </div>
-            <p>More counting drills are on the way — check back soon.</p>
+            <p>Master every drill and question to count down the shoe like a pro.</p>
           </div>
 
           <div class="toolbar compact-toolbar">
@@ -423,6 +428,51 @@
           <button type="button" id="deviationNextBtn" class="menu-btn primary strategy-next-btn hidden">Next Scenario</button>
 
           <div class="toolbar compact-toolbar">
+            <button class="menu-btn secondary" data-screen="card-counting">Card Counting Menu</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="countingQuestionnaireScreen" class="screen">
+        <div class="trainer-panel strategy-panel">
+          <div class="page-header">
+            <h1>Count Quiz</h1>
+            <p>Multiple choice, true/false, and choose-all-that-apply questions covering true count math, running count, and Illustrious 18 trivia.</p>
+          </div>
+
+          <div class="strategy-toolbar">
+            <div class="strategy-tabs">
+              <button type="button" class="strategy-tab active" id="countQuizTabPractice">Practice All Questions</button>
+              <button type="button" class="strategy-tab" id="countQuizTabMistakes">Mistakes Bank <span id="countQuizMistakesCountBadge" class="badge-count">0</span></button>
+            </div>
+          </div>
+
+          <div id="countQuizProgressRow" class="strategy-progress-row">
+            <div class="strategy-progress-track"><div id="countQuizProgressFill" class="strategy-progress-fill"></div></div>
+            <div id="countQuizProgressLabel" class="strategy-progress-label">0 / 0 questions remaining</div>
+          </div>
+
+          <div id="countQuizPlayArea" class="quiz-play-area">
+            <div id="countQuizTypeTag" class="quiz-type-tag">Multiple Choice</div>
+            <div id="countQuizPrompt" class="quiz-prompt"></div>
+            <div id="countQuizOptions" class="quiz-options"></div>
+            <button type="button" id="countQuizSubmitBtn" class="menu-btn primary quiz-submit-btn">Submit Answer</button>
+          </div>
+
+          <div id="countQuizFeedback" class="strategy-feedback hidden"></div>
+
+          <button type="button" id="countQuizNextBtn" class="menu-btn primary strategy-next-btn hidden">Next Question</button>
+
+          <div id="countQuizMistakesPanel" class="strategy-mistakes-panel hidden">
+            <div id="countQuizMistakesEmpty" class="strategy-mistakes-empty hidden">No mistakes saved yet. Anything you miss while practicing will show up here.</div>
+            <div id="countQuizMistakesList" class="strategy-mistakes-list"></div>
+            <div class="toolbar compact-toolbar">
+              <button type="button" class="menu-btn accent" id="countQuizPracticeMistakesBtn">Practice Mistakes</button>
+            </div>
+          </div>
+
+          <div class="toolbar compact-toolbar">
+            <button type="button" class="menu-btn secondary hidden" id="countQuizBackToListBtn">Back to Mistakes List</button>
             <button class="menu-btn secondary" data-screen="card-counting">Card Counting Menu</button>
           </div>
         </div>
@@ -501,6 +551,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=blackjack-terminus-guest-play-v11"></script>
+    <script src="app.js?v=blackjack-terminus-count-quiz-v2"></script>
   </body>
 </html>
