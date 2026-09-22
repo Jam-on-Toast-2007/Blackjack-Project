@@ -23,7 +23,8 @@ const state = {
     decksInShoe: 6,
     musicVolume: 100,
     sfxVolume: 100,
-    dealingSpeed: 80
+    dealingSpeed: 80,
+    colorScheme: 'mystical-casino'
   },
   presetName: 'Training',
   shoe: [],
@@ -445,9 +446,14 @@ document.addEventListener('DOMContentLoaded', () => {
   init();
 });
 
+function applyColorScheme(scheme) {
+  document.documentElement.dataset.theme = scheme === 'classic-casino' ? 'classic-casino' : 'mystical-casino';
+}
+
 function init() {
   state.settings = { ...state.settings };
   state.shoe = createShoe(state.settings.decksInShoe);
+  applyColorScheme(state.settings.colorScheme);
   setupScreenMusic();
   updateHud();
   renderRulesScreen();
@@ -2861,6 +2867,7 @@ function renderSettingsScreen() {
 
   const musicValue = state.settings.musicVolume ?? 100;
   const sfxValue = state.settings.sfxVolume ?? 100;
+  const activeScheme = state.settings.colorScheme || 'mystical-casino';
 
   content.innerHTML = `
     <section class="info-block settings-block">
@@ -2877,6 +2884,22 @@ function renderSettingsScreen() {
         <div class="slider-wrap">
           <input id="soundEffectSlider" type="range" min="0" max="100" value="${sfxValue}" />
           <span>${sfxValue}%</span>
+        </div>
+      </div>
+
+      <div class="slider-row">
+        <label>Color scheme</label>
+        <div class="theme-choice-row">
+          <button type="button" class="theme-choice-btn${activeScheme === 'mystical-casino' ? ' active' : ''}" data-theme-choice="mystical-casino">
+            <span class="theme-swatch"></span>
+            <span class="theme-choice-label">Mystical Casino</span>
+            <span class="theme-choice-tagline">Burgundy &amp; violet</span>
+          </button>
+          <button type="button" class="theme-choice-btn${activeScheme === 'classic-casino' ? ' active' : ''}" data-theme-choice="classic-casino">
+            <span class="theme-swatch"></span>
+            <span class="theme-choice-label">Classic Casino</span>
+            <span class="theme-choice-tagline">Emerald &amp; jade green</span>
+          </button>
         </div>
       </div>
     </section>
@@ -2906,6 +2929,17 @@ function renderSettingsScreen() {
 
   if (musicSlider) bindSlider(musicSlider, 'musicVolume', musicSlider.parentElement.querySelector('span'));
   if (sfxSlider) bindSlider(sfxSlider, 'sfxVolume', sfxSlider.parentElement.querySelector('span'));
+
+  content.querySelectorAll('.theme-choice-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const choice = btn.dataset.themeChoice;
+      if (choice === state.settings.colorScheme) return;
+      state.settings.colorScheme = choice;
+      applyColorScheme(choice);
+      content.querySelectorAll('.theme-choice-btn').forEach((b) => b.classList.toggle('active', b.dataset.themeChoice === choice));
+      playButtonTone({ frequency: 380, duration: 0.09, volume: 0.11, type: 'triangle', sweep: 24 });
+    });
+  });
 }
 
 function renderStrategyScreen() {
